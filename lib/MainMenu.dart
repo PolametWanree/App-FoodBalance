@@ -168,20 +168,55 @@ class _MainMenuState extends State<MainMenu> {
         .doc(userId)
         .snapshots();
   }
+
   // ฟังก์ชันดึงข้อมูล consumed ของผู้ใช้แต่ละคนจาก Firestore
   Stream<DocumentSnapshot> _getUserConsumedCount(String userId) {
-  return FirebaseFirestore.instance
-      .collection('user_consumed') // ตรวจสอบว่าใช้ collection ชื่อนี้จริง ๆ
-      .doc(userId)
-      .snapshots();
-}
+    return FirebaseFirestore.instance
+        .collection('user_consumed') // ตรวจสอบว่าใช้ collection ชื่อนี้จริง ๆ
+        .doc(userId)
+        .snapshots();
+  }
 
+  // ฟังก์ชันตรวจสอบและรีเซ็ตค่า user_eat เมื่อขึ้นวันใหม่
+  void checkAndResetUserEat(String userId) async {
+    DocumentSnapshot snapshot = await FirebaseFirestore.instance
+        .collection('user_record')
+        .doc(userId)
+        .get();
+
+    if (snapshot.exists) {
+      var data = snapshot.data() as Map<String, dynamic>?;
+      var timestamp = data?['timestamp'] as Timestamp?;
+
+      if (timestamp != null) {
+        DateTime lastUpdateDate = timestamp.toDate();
+        DateTime currentDate = DateTime.now();
+
+        // ตรวจสอบว่าวันปัจจุบันกับวันสุดท้ายที่อัปเดตต่างกันหรือไม่
+        if (lastUpdateDate.day != currentDate.day ||
+            lastUpdateDate.month != currentDate.month ||
+            lastUpdateDate.year != currentDate.year) {
+          // ถ้าวันใหม่ ให้รีเซ็ต user_eat เป็น 0
+          await FirebaseFirestore.instance
+              .collection('user_record')
+              .doc(userId)
+              .update({
+            'user_eat': 0,
+            'timestamp': Timestamp.fromDate(currentDate), // อัปเดตวันที่ใหม่
+          });
+        }
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     // รับ userId จาก Firebase Authentication
     final user = FirebaseAuth.instance.currentUser;
     final userId = user?.uid;
+
+    // เรียกฟังก์ชันตรวจสอบและรีเซ็ต user_eat เมื่อขึ้นวันใหม่
+    checkAndResetUserEat(userId ?? '');
 
     return Scaffold(
       appBar: AppBar(
@@ -235,32 +270,31 @@ class _MainMenuState extends State<MainMenu> {
                     alignment: Alignment.center,
                     children: [
                       SizedBox(
-  height: 50,
-  width: 165,
-  child: StreamBuilder<DocumentSnapshot>(
-    stream: FirebaseFirestore.instance
-        .collection('user_record') // ตรวจสอบว่าชื่อ collection ถูกต้อง
-        .doc(userId)
-        .snapshots(),
-    builder: (context, snapshot) {
-      if (snapshot.hasData) {
-        var data = snapshot.data!.data() as Map<String, dynamic>?;
-        var userEat = data?['user_eat'] ?? 0;
-        var tdee = data?['tdee'] ?? 2000; // ตรวจสอบค่า tdee ของผู้ใช้
+                        height: 50,
+                        width: 165,
+                        child: StreamBuilder<DocumentSnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('user_record') // ตรวจสอบว่าชื่อ collection ถูกต้อง
+                              .doc(userId)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            if (snapshot.hasData) {
+                              var data = snapshot.data!.data() as Map<String, dynamic>?;
+                              var userEat = data?['user_eat'] ?? 0;
+                              var tdee = data?['tdee'] ?? 2000; // ตรวจสอบค่า tdee ของผู้ใช้
 
-        // คำนวณเปอร์เซ็นต์ความคืบหน้า
-        double progress = userEat >= tdee ? 100 : (userEat / tdee) * 100;
+                              // คำนวณเปอร์เซ็นต์ความคืบหน้า
+                              double progress = userEat >= tdee ? 100 : (userEat / tdee) * 100;
 
-        return CustomPaint(
-          painter: HalfCircleProgress(progress),
-        );
-      } else {
-        return Center(child: CircularProgressIndicator());
-      }
-    },
-  ),
-),
-  
+                              return CustomPaint(
+                                painter: HalfCircleProgress(progress),
+                              );
+                            } else {
+                              return Center(child: CircularProgressIndicator());
+                            }
+                          },
+                        ),
+                      ),
                       // ใช้ StreamBuilder เพื่อดึงข้อมูล TDEE ของผู้ใช้
                       StreamBuilder<DocumentSnapshot>(
                         stream: _getUserTDEE(userId ?? ''),
@@ -323,23 +357,23 @@ class _MainMenuState extends State<MainMenu> {
                           children: [
                             // ใช้ StreamBuilder เพื่อแสดงข้อมูล consumed
                             StreamBuilder<DocumentSnapshot>(
-                                stream: _getUserConsumedCount(userId ?? ''),
-                                builder: (context, snapshot) {
-                                  if (snapshot.hasData) {
-                                    var data = snapshot.data!.data() as Map<String, dynamic>?;
-                                    var consumed = data?['count'] ?? 0; // ตรวจสอบให้แน่ใจว่า 'count' คือฟิลด์ที่เก็บค่า consumed
-                                    return Text(
-                                      '$consumed',
-                                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                                    );
-                                  } else {
-                                    return Text(
-                                      '0', // แสดงค่าเริ่มต้นเป็น 0 ถ้าไม่สามารถดึงข้อมูลได้
-                                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                                    );
-                                  }
-                                },
-                              ),
+                              stream: _getUserConsumedCount(userId ?? ''),
+                              builder: (context, snapshot) {
+                                if (snapshot.hasData) {
+                                  var data = snapshot.data!.data() as Map<String, dynamic>?;
+                                  var consumed = data?['count'] ?? 0; // ตรวจสอบให้แน่ใจว่า 'count' คือฟิลด์ที่เก็บค่า consumed
+                                  return Text(
+                                    '$consumed',
+                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                  );
+                                } else {
+                                  return Text(
+                                    '0', // แสดงค่าเริ่มต้นเป็น 0 ถ้าไม่สามารถดึงข้อมูลได้
+                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                  );
+                                }
+                              },
+                            ),
                             Text(
                               'Consumed',
                               style: TextStyle(fontSize: 12, color: Colors.grey),
