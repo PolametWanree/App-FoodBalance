@@ -15,6 +15,7 @@ class _AddFoodPageState extends State<AddFoodPage> {
   final TextEditingController _carbsController = TextEditingController();
   final TextEditingController _proteinsController = TextEditingController();
   final TextEditingController _fatsController = TextEditingController();
+  final TextEditingController _caloriesController = TextEditingController(); // เพิ่ม TextEditingController สำหรับแคลอรี่
 
   // วิตามิน
   final TextEditingController _vitaminAController = TextEditingController();
@@ -40,6 +41,7 @@ class _AddFoodPageState extends State<AddFoodPage> {
         'name': _foodNameController.text.isNotEmpty ? _foodNameController.text : '-',
         'type': _typeController.text.isNotEmpty ? _typeController.text : '-',
         'nutrition': {
+          'calories': _caloriesController.text.isNotEmpty ? _caloriesController.text : '-', // เพิ่มแคลอรี่
           'carbohydrates': _carbsController.text.isNotEmpty ? _carbsController.text : '-',
           'proteins': _proteinsController.text.isNotEmpty ? _proteinsController.text : '-',
           'fats': _fatsController.text.isNotEmpty ? _fatsController.text : '-',
@@ -79,6 +81,7 @@ class _AddFoodPageState extends State<AddFoodPage> {
     _carbsController.clear();
     _proteinsController.clear();
     _fatsController.clear();
+    _caloriesController.clear(); // เคลียร์ข้อมูลแคลอรี่
     _vitaminAController.clear();
     _vitaminBController.clear();
     _vitaminCController.clear();
@@ -131,6 +134,10 @@ class _AddFoodPageState extends State<AddFoodPage> {
               TextFormField(
                 controller: _fatsController,
                 decoration: InputDecoration(labelText: 'ไขมัน (g)'),
+              ),
+              TextFormField(
+                controller: _caloriesController, // ฟิลด์สำหรับแคลอรี่
+                decoration: InputDecoration(labelText: 'แคลอรี่ (kcal)'),
               ),
               Text('วิตามิน', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               TextFormField(

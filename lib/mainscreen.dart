@@ -7,7 +7,6 @@ import 'homepage.dart';
 import 'chatgemini.dart';
 import 'tflite.dart';
 import 'MainMenu.dart';
-
 class MainScreen extends StatefulWidget {
   @override
   _MainScreenState createState() => _MainScreenState();
@@ -21,7 +20,7 @@ class _MainScreenState extends State<MainScreen> {
     AddFoodPage(),
     ImageScannerPage(),
     FoodListPage(),
-    ChatGemini()
+    ChatGemini(),
   ];
 
   @override

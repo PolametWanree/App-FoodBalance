@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'package:cloud_firestore/cloud_firestore.dart'; // ใช้สำหรับดึงข้อมูลจาก Firestore
+import 'package:firebase_auth/firebase_auth.dart'; // ใช้สำหรับการล็อกอินของผู้ใช้
 
 class SpeechBubblePainter extends CustomPainter {
   @override
@@ -8,29 +10,27 @@ class SpeechBubblePainter extends CustomPainter {
       ..color = Colors.white
       ..style = PaintingStyle.fill;
 
-Path path = Path();
-path.moveTo(20, 0); // เริ่มวาดที่จุดบนซ้าย
-path.lineTo(size.width - 20, 0); // เส้นตรงด้านบน
-path.quadraticBezierTo(size.width, 0, size.width, 20); // มุมโค้งบนขวา
-path.lineTo(size.width, size.height - 20); // เส้นตรงด้านขวา
-path.quadraticBezierTo(size.width, size.height, size.width - 20, size.height); // มุมโค้งล่างขวา
-path.lineTo(60, size.height); // เส้นตรงล่างซ้าย (หลบหางกล่อง)
-path.quadraticBezierTo(120, size.height + 30, 40, size.height); // หางกล่องข้อความโค้งและชี้ไปทางขวา
-path.lineTo(20, size.height); // กลับไปยังเส้นล่างซ้าย
-path.lineTo(20, size.height); // เส้นล่างซ้ายก่อนถึงมุมล่างซ้าย
-path.quadraticBezierTo(0, size.height, 0, size.height - 20); // มุมโค้งล่างซ้าย
-path.lineTo(0, 20); // เส้นตรงด้านซ้าย
-path.quadraticBezierTo(0, 0, 20, 0); // มุมโค้งบนซ้าย
+    Path path = Path();
+    path.moveTo(20, 0); // เริ่มวาดที่จุดบนซ้าย
+    path.lineTo(size.width - 20, 0); // เส้นตรงด้านบน
+    path.quadraticBezierTo(size.width, 0, size.width, 20); // มุมโค้งบนขวา
+    path.lineTo(size.width, size.height - 20); // เส้นตรงด้านขวา
+    path.quadraticBezierTo(size.width, size.height, size.width - 20, size.height); // มุมโค้งล่างขวา
+    path.lineTo(60, size.height); // เส้นตรงล่างซ้าย (หลบหางกล่อง)
+    path.quadraticBezierTo(120, size.height + 30, 40, size.height); // หางกล่องข้อความโค้งและชี้ไปทางขวา
+    path.lineTo(20, size.height); // กลับไปยังเส้นล่างซ้าย
+    path.lineTo(20, size.height); // เส้นล่างซ้ายก่อนถึงมุมล่างซ้าย
+    path.quadraticBezierTo(0, size.height, 0, size.height - 20); // มุมโค้งล่างซ้าย
+    path.lineTo(0, 20); // เส้นตรงด้านซ้าย
+    path.quadraticBezierTo(0, 0, 20, 0); // มุมโค้งบนซ้าย
 
-canvas.drawPath(path, paint); // วาดเส้นตาม path ที่กำหนด
-
-
+    canvas.drawPath(path, paint); // วาดเส้นตาม path ที่กำหนด
 
     Paint borderPaint = Paint()
       ..color = Colors.black
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
-    
+
     canvas.drawPath(path, borderPaint);
   }
 
@@ -131,7 +131,7 @@ class _MainMenuState extends State<MainMenu> {
             Transform.translate(
               offset: Offset(110, 210), // ปรับตำแหน่งของรูปภาพ
               child: Image.asset(
-                'assets/images/Mascot.PNG',
+                'assets/images/3.png',
                 height: 550,
                 width: 230,
               ),
@@ -161,8 +161,28 @@ class _MainMenuState extends State<MainMenu> {
     });
   }
 
+  // ฟังก์ชันดึงข้อมูล TDEE ของผู้ใช้แต่ละคนจาก Firestore
+  Stream<DocumentSnapshot> _getUserTDEE(String userId) {
+    return FirebaseFirestore.instance
+        .collection('user_record')
+        .doc(userId)
+        .snapshots();
+  }
+  // ฟังก์ชันดึงข้อมูล consumed ของผู้ใช้แต่ละคนจาก Firestore
+  Stream<DocumentSnapshot> _getUserConsumedCount(String userId) {
+  return FirebaseFirestore.instance
+      .collection('user_consumed') // ตรวจสอบว่าใช้ collection ชื่อนี้จริง ๆ
+      .doc(userId)
+      .snapshots();
+}
+
+
   @override
   Widget build(BuildContext context) {
+    // รับ userId จาก Firebase Authentication
+    final user = FirebaseAuth.instance.currentUser;
+    final userId = user?.uid;
+
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -215,37 +235,111 @@ class _MainMenuState extends State<MainMenu> {
                     alignment: Alignment.center,
                     children: [
                       SizedBox(
-                        height: 50,
-                        width: 165,
-                        child: CustomPaint(
-                          painter: HalfCircleProgress(progress),
-                        ),
-                      ),
-                      Transform.translate(
-                        offset: Offset(0, -20),
-                        child: Text(
-                          '3,118',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      Transform.translate(
-                        offset: Offset(0, -2),
-                        child: Text(
-                          'kcal Remaining',
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontSize: 12,
-                          ),
-                        ),
+  height: 50,
+  width: 165,
+  child: StreamBuilder<DocumentSnapshot>(
+    stream: FirebaseFirestore.instance
+        .collection('user_record') // ตรวจสอบว่าชื่อ collection ถูกต้อง
+        .doc(userId)
+        .snapshots(),
+    builder: (context, snapshot) {
+      if (snapshot.hasData) {
+        var data = snapshot.data!.data() as Map<String, dynamic>?;
+        var userEat = data?['user_eat'] ?? 0;
+        var tdee = data?['tdee'] ?? 2000; // ตรวจสอบค่า tdee ของผู้ใช้
+
+        // คำนวณเปอร์เซ็นต์ความคืบหน้า
+        double progress = userEat >= tdee ? 100 : (userEat / tdee) * 100;
+
+        return CustomPaint(
+          painter: HalfCircleProgress(progress),
+        );
+      } else {
+        return Center(child: CircularProgressIndicator());
+      }
+    },
+  ),
+),
+  
+                      // ใช้ StreamBuilder เพื่อดึงข้อมูล TDEE ของผู้ใช้
+                      StreamBuilder<DocumentSnapshot>(
+                        stream: _getUserTDEE(userId ?? ''),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasData) {
+                            var data = snapshot.data!.data() as Map<String, dynamic>?;
+                            var tdee = data?['tdee'] ?? 0;
+                            var userEat = data?['user_eat'] ?? 0;
+                            var kcalRemaining = userEat >= tdee ? userEat - tdee : tdee - userEat; // คำนวณค่าคงเหลือ
+
+                            return Column(
+                              children: [
+                                Transform.translate(
+                                  offset: Offset(0, -5),
+                                  child: Text(
+                                    '$kcalRemaining',
+                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                Transform.translate(
+                                  offset: Offset(0, -2),
+                                  child: Text(
+                                    userEat >= tdee ? 'kcal to burn' : 'kcal remaining',
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          } else {
+                            return Column(
+                              children: [
+                                Transform.translate(
+                                  offset: Offset(0, -20),
+                                  child: Text(
+                                    'Loading...',
+                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                Transform.translate(
+                                  offset: Offset(0, -2),
+                                  child: Text(
+                                    'kcal remaining',
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }
+                        },
                       ),
                       Transform.translate(
                         offset: Offset(-120, 0),
                         child: Column(
                           children: [
-                            Text(
-                              '0',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                            ),
+                            // ใช้ StreamBuilder เพื่อแสดงข้อมูล consumed
+                            StreamBuilder<DocumentSnapshot>(
+                                stream: _getUserConsumedCount(userId ?? ''),
+                                builder: (context, snapshot) {
+                                  if (snapshot.hasData) {
+                                    var data = snapshot.data!.data() as Map<String, dynamic>?;
+                                    var consumed = data?['count'] ?? 0; // ตรวจสอบให้แน่ใจว่า 'count' คือฟิลด์ที่เก็บค่า consumed
+                                    return Text(
+                                      '$consumed',
+                                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                    );
+                                  } else {
+                                    return Text(
+                                      '0', // แสดงค่าเริ่มต้นเป็น 0 ถ้าไม่สามารถดึงข้อมูลได้
+                                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                    );
+                                  }
+                                },
+                              ),
                             Text(
                               'Consumed',
                               style: TextStyle(fontSize: 12, color: Colors.grey),
@@ -307,9 +401,87 @@ class _MainMenuState extends State<MainMenu> {
               ),
             ),
           ),
+          SizedBox(height: 20),
+          Text(
+            "ประวัติการบริโภคอาหาร",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          // ดึงข้อมูลของผู้ใช้ที่ล็อกอิน
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _getUserFoodHistory(userId ?? ''), // ใช้ userId ในการกรองข้อมูล
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return Center(child: CircularProgressIndicator());
+                }
+
+                var foodHistory = snapshot.data!.docs;
+
+                return ListView.builder(
+                  itemCount: foodHistory.length,
+                  itemBuilder: (context, index) {
+                    var food = foodHistory[index].data() as Map<String, dynamic>;
+
+                    // เช็คว่า 'added_at' มีค่าเป็น null หรือไม่
+                    Timestamp? timestamp = food['added_at'] as Timestamp?;
+                    String formattedDate = '';
+
+                    // ถ้ามีค่า 'added_at' ให้ทำการแปลงเป็น DateTime และกำหนดรูปแบบวันที่
+                    if (timestamp != null) {
+                      DateTime addedAt = timestamp.toDate(); // แปลงเป็น DateTime
+                      formattedDate = "${addedAt.day}/${addedAt.month}/${addedAt.year} ${addedAt.hour}:${addedAt.minute}";
+                    } else {
+                      formattedDate = 'ไม่มีข้อมูลเวลา'; // หากไม่มีข้อมูล ให้แสดงข้อความนี้แทน
+                    }
+
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 12),
+                      child: Card(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 4,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                food['food_name'] ?? '-',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blueAccent,
+                                ),
+                              ),
+                              SizedBox(height: 5),
+                              Text(
+                                'เพิ่มเมื่อ: $formattedDate',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  Stream<QuerySnapshot> _getUserFoodHistory(String userId) {
+    return FirebaseFirestore.instance
+        .collection('user_addFood')
+        .where('user_id', isEqualTo: userId) // กรองเฉพาะข้อมูลของผู้ใช้ที่ล็อกอิน
+        .snapshots();
   }
 }
 
