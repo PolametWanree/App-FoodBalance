@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart'; // ใช้สำหรับดึงข้อมูลจาก Firestore
-import 'package:firebase_auth/firebase_auth.dart'; // ใช้สำหรับการล็อกอินของผู้ใช้
+import 'package:firebase_auth/firebase_auth.dart';
+
+import 'tflite.dart'; // ใช้สำหรับการล็อกอินของผู้ใช้
 
 class SpeechBubblePainter extends CustomPainter {
   @override
@@ -144,12 +146,12 @@ class _MainMenuState extends State<MainMenu> {
 
   void _increaseProgress() {
     setState(() {
-      if (progress < 100) {
-        progress += 10; // เพิ่ม progress ทีละ 10%
-        if (progress >= 100) {
-          _showCompletionDialog(); // แสดง Alert เมื่อถึง 100%
-        }
-      }
+      progress += 10; // เพิ่ม progress ทีละ 10%
+if (progress >= 100) {
+  progress = 100; // ทำให้แน่ใจว่า progress จะไม่เกิน 100%
+  _showCompletionDialog(); // แสดง Alert เมื่อถึง 100%
+}
+
     });
   }
 
@@ -250,8 +252,11 @@ class _MainMenuState extends State<MainMenu> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 15),
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
             child: Container(
+              /////////////////ปรับ กล่องขาวๆ decoration: BoxDecoration ให้เป็นกล่องสีขาวๆ/////////////////////
+              width: 350,
+              height: 180,
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
@@ -396,40 +401,35 @@ class _MainMenuState extends State<MainMenu> {
                           ],
                         ),
                       ),
+                        Transform.translate(
+                        offset: Offset(0, 60), // Adjust the offset as needed
+                        child: SizedBox(
+                          width: 160, // Adjust the width as needed
+                          height: 50, // Adjust the height as needed
+                          child: ElevatedButton(
+                    
+                          onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => ImageScannerPage()), // ลิงก์ไปยังหน้า ImageScannerPage
+                          );
+                          },
+                          child: Text(
+                          'Add Meal',
+                          style: TextStyle(color: Colors.white),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color.fromARGB(255, 91, 172, 123), // กำหนดสีปุ่ม
+                          padding: EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12), // ปรับมุมโค้งของปุ่ม
+                          ),
+                          ),
+                        ),
+                        ),
+                        ),
                     ],
-                  ),
-                  Transform.translate(
-                    offset: Offset(0, 10),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: _decreaseProgress,
-                            child: Text(
-                              'ลดความก้าวหน้า',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              padding: EdgeInsets.symmetric(vertical: 8),
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: 10),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: _increaseProgress,
-                            child: Text('เพิ่มความก้าวหน้า',
-                                style: TextStyle(color: Colors.white)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              padding: EdgeInsets.symmetric(vertical: 8),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+
                   ),
                 ],
               ),
