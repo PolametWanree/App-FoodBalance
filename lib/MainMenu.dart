@@ -179,6 +179,38 @@ if (progress >= 100) {
         .snapshots();
   }
 
+  void checkAndResetUserConsumedCount(String userId) async {
+  DocumentSnapshot snapshot = await FirebaseFirestore.instance
+      .collection('user_consumed')
+      .doc(userId)
+      .get();
+
+  if (snapshot.exists) {
+    var data = snapshot.data() as Map<String, dynamic>?;
+    var lastUpdated = data?['lastUpdated'] as Timestamp?;
+
+    if (lastUpdated != null) {
+      DateTime lastUpdateDate = lastUpdated.toDate();
+      DateTime currentDate = DateTime.now();
+
+      // ตรวจสอบว่าวันปัจจุบันกับวันสุดท้ายที่อัปเดตต่างกันหรือไม่
+      if (lastUpdateDate.day != currentDate.day ||
+          lastUpdateDate.month != currentDate.month ||
+          lastUpdateDate.year != currentDate.year) {
+        // ถ้าวันใหม่ ให้รีเซ็ต count เป็น 0
+        await FirebaseFirestore.instance
+            .collection('user_consumed')
+            .doc(userId)
+            .update({
+          'count': 0,
+          'lastUpdated': Timestamp.fromDate(currentDate), // อัปเดตวันที่ใหม่
+        });
+      }
+    }
+  }
+}
+
+
   // ฟังก์ชันตรวจสอบและรีเซ็ตค่า user_eat เมื่อขึ้นวันใหม่
   void checkAndResetUserEat(String userId) async {
     DocumentSnapshot snapshot = await FirebaseFirestore.instance
@@ -219,6 +251,7 @@ if (progress >= 100) {
 
     // เรียกฟังก์ชันตรวจสอบและรีเซ็ต user_eat เมื่อขึ้นวันใหม่
     checkAndResetUserEat(userId ?? '');
+    checkAndResetUserConsumedCount(userId ?? '');
 
     return Scaffold(
       appBar: AppBar(
