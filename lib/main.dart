@@ -36,7 +36,6 @@ class MyApp extends StatelessWidget {
         '/register': (context) => const RegisterPage(),
         '/height_weight': (context) => const HeightWeightPage(),
         '/main': (context) =>  MainScreen(),
-        
         '/chat': (context) => const ChatGemini(),
       },
       debugShowCheckedModeBanner: false, // ซ่อนแบนเนอร์ debug ที่มุมขวาบน

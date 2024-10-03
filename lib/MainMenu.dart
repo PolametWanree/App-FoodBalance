@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart'; // ใช้สำหรับดึงข้อมูลจาก Firestore
 import 'package:firebase_auth/firebase_auth.dart';
-
-import 'tflite.dart'; // ใช้สำหรับการล็อกอินของผู้ใช้
+import 'tflite.dart';
 
 class SpeechBubblePainter extends CustomPainter {
   @override
@@ -144,16 +143,6 @@ class _MainMenuState extends State<MainMenu> {
     );
   }
 
-  void _increaseProgress() {
-    setState(() {
-      progress += 10; // เพิ่ม progress ทีละ 10%
-if (progress >= 100) {
-  progress = 100; // ทำให้แน่ใจว่า progress จะไม่เกิน 100%
-  _showCompletionDialog(); // แสดง Alert เมื่อถึง 100%
-}
-
-    });
-  }
 
   void _decreaseProgress() {
     setState(() {
@@ -254,6 +243,7 @@ if (progress >= 100) {
     checkAndResetUserConsumedCount(userId ?? '');
 
     return Scaffold(
+      backgroundColor: Color.fromARGB(255, 241, 255, 244),
       appBar: AppBar(
         title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -289,7 +279,7 @@ if (progress >= 100) {
             child: Container(
               /////////////////ปรับ กล่องขาวๆ decoration: BoxDecoration ให้เป็นกล่องสีขาวๆ/////////////////////
               width: 350,
-              height: 180,
+              height: 150,
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
@@ -434,115 +424,105 @@ if (progress >= 100) {
                           ],
                         ),
                       ),
-                        Transform.translate(
-                        offset: Offset(0, 60), // Adjust the offset as needed
-                        child: SizedBox(
-                          width: 160, // Adjust the width as needed
-                          height: 50, // Adjust the height as needed
-                          child: ElevatedButton(
-                    
-                          onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => ImageScannerPage()), // ลิงก์ไปยังหน้า ImageScannerPage
-                          );
-                          },
-                          child: Text(
-                          'Add Meal',
-                          style: TextStyle(color: Colors.white),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color.fromARGB(255, 91, 172, 123), // กำหนดสีปุ่ม
-                          padding: EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12), // ปรับมุมโค้งของปุ่ม
-                          ),
-                          ),
-                        ),
-                        ),
-                        ),
-                    ],
 
+                    ],
                   ),
                 ],
               ),
+              
             ),
+            
           ),
           SizedBox(height: 20),
-          Text(
-            "ประวัติการบริโภคอาหาร",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          // ดึงข้อมูลของผู้ใช้ที่ล็อกอิน
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _getUserFoodHistory(userId ?? ''), // ใช้ userId ในการกรองข้อมูล
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return Center(child: CircularProgressIndicator());
-                }
+        Text(
+          "ประวัติการบริโภคอาหาร",
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        SizedBox(height: 10),
 
-                var foodHistory = snapshot.data!.docs;
+        // ส่วนประวัติการบริโภคอาหารเป็น Slider แนวนอน
+        SizedBox(
+          height: 200, // กำหนดความสูงของ Slider
+          child: StreamBuilder<QuerySnapshot>(
+            stream: _getUserFoodHistory(userId ?? ''),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return Center(child: CircularProgressIndicator());
+              }
 
-                return ListView.builder(
-                  itemCount: foodHistory.length,
-                  itemBuilder: (context, index) {
-                    var food = foodHistory[index].data() as Map<String, dynamic>;
+              var foodHistory = snapshot.data!.docs;
 
-                    // เช็คว่า 'added_at' มีค่าเป็น null หรือไม่
-                    Timestamp? timestamp = food['added_at'] as Timestamp?;
-                    String formattedDate = '';
+              return ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: foodHistory.length,
+                itemBuilder: (context, index) {
+                  var food = foodHistory[index].data() as Map<String, dynamic>;
 
-                    // ถ้ามีค่า 'added_at' ให้ทำการแปลงเป็น DateTime และกำหนดรูปแบบวันที่
-                    if (timestamp != null) {
-                      DateTime addedAt = timestamp.toDate(); // แปลงเป็น DateTime
-                      formattedDate = "${addedAt.day}/${addedAt.month}/${addedAt.year} ${addedAt.hour}:${addedAt.minute}";
-                    } else {
-                      formattedDate = 'ไม่มีข้อมูลเวลา'; // หากไม่มีข้อมูล ให้แสดงข้อความนี้แทน
-                    }
+                  // ตรวจสอบว่า 'added_at' มีค่าเป็น null หรือไม่
+                  Timestamp? timestamp = food['added_at'] as Timestamp?;
+                  String formattedDate = '';
 
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 12),
-                      child: Card(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 4,
-                        child: Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                food['food_name'] ?? '-',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blueAccent,
-                                ),
+                  if (timestamp != null) {
+                    DateTime addedAt = timestamp.toDate(); // แปลงเป็น DateTime
+                    formattedDate =
+                        "${addedAt.day}/${addedAt.month}/${addedAt.year} ${addedAt.hour}:${addedAt.minute}";
+                  } else {
+                    formattedDate = 'ไม่มีข้อมูลเวลา';
+                  }
+
+                  return Container(
+                    width: 200,
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 10, horizontal: 5),
+                    child: Card(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 4,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              food['food_name'] ?? '-',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blueAccent,
                               ),
-                              SizedBox(height: 5),
-                              Text(
-                                'เพิ่มเมื่อ: $formattedDate',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey.shade700,
-                                ),
+                            ),
+                            SizedBox(height: 5),
+                            Text(
+                              'เพิ่มเมื่อ: $formattedDate',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey.shade700,
                               ),
-                            ],
-                          ),
+                            ),
+                            SizedBox(height: 10),
+                            Text(
+                              'kcal: ${food['kcal'] ?? '-'}',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.green,
+                              ),
+                            ),
+                            // คุณสามารถเพิ่มข้อมูลเพิ่มเติมที่ต้องการแสดงในการ์ด
+                          ],
                         ),
                       ),
-                    );
-                  },
-                );
-              },
-            ),
+                    ),
+                  );
+                },
+              );
+            },
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   Stream<QuerySnapshot> _getUserFoodHistory(String userId) {
     return FirebaseFirestore.instance

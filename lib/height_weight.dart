@@ -52,93 +52,116 @@ class _HeightWeightPageState extends State<HeightWeightPage> {
     }
   }
 
-void _saveData() async {
-  if (_birthdate == null || _selectedGender == null || _selectedActivityLevel == null) {
-    // แสดงข้อความ error ถ้าเลือกข้อมูลไม่ครบ
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Incomplete Information'),
-        content: const Text('Please complete all fields.'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-    return;
+  // ฟังก์ชันคำนวณโปรตีนที่ต้องการต่อวัน
+  double _calculateProtein() {
+    return 0.8 * _weight;
   }
 
-  // คำนวณอายุ
-   int age = DateTime.now().year - _birthdate!.year;
-  if (DateTime.now().isBefore(DateTime(DateTime.now().year, _birthdate!.month, _birthdate!.day))) {
-    age--;
+  // ฟังก์ชันคำนวณไขมันที่ต้องการต่อวัน
+  double _calculateFat() {
+    return 0.3 * _weight;
   }
 
-  setState(() {
-    _isSaving = true;
-  });
+  // ฟังก์ชันคำนวณน้ำตาลที่แนะนำต่อวัน (แนะนำจาก WHO)
+  double _calculateSugar() {
+    return 25; // 25 กรัมต่อวันเป็นค่าที่แนะนำโดย WHO
+  }
 
-  try {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      // Generate a random user_id
-      String userId = const Uuid().v4();
-
-      // คำนวณ BMR และ TDEE
-      double bmr = _calculateBMR();
-      int tdee = _calculateTDEE(bmr).round();
-
-      // บันทึกข้อมูลพื้นฐานไปยัง collection users
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-        'user_id': userId,
-        'name': _name,
-        'height': _height,
-        'weight': _weight,
-        'birthdate': _birthdate,
-        'age': age,
-        'gender': _selectedGender,
-        'activity_level': _selectedActivityLevel,
-      });
-
-      // บันทึก TDEE ไปยัง collection user_record
-      await FirebaseFirestore.instance.collection('user_record').doc(user.uid).set({
-        'user_id': userId,
-        'tdee': tdee, // บันทึก TDEE
-        'user_eat': 0, // เริ่มต้น user_eat ที่ 0
-        'timestamp': FieldValue.serverTimestamp(), // บันทึก timestamp
-      });
-
-      // เปลี่ยนหน้าไปยัง main page
-      Navigator.pushReplacementNamed(context, '/main');
+  void _saveData() async {
+    if (_birthdate == null || _selectedGender == null || _selectedActivityLevel == null) {
+      // แสดงข้อความ error ถ้าเลือกข้อมูลไม่ครบ
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Incomplete Information'),
+          content: const Text('Please complete all fields.'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
     }
-  } catch (e) {
+
+    // คำนวณอายุ
+    int age = DateTime.now().year - _birthdate!.year;
+    if (DateTime.now().isBefore(DateTime(DateTime.now().year, _birthdate!.month, _birthdate!.day))) {
+      age--;
+    }
+
     setState(() {
-      _isSaving = false;
+      _isSaving = true;
     });
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Save Failed'),
-        content: const Text('An error occurred. Please try again.'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-}
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Generate a random user_id
+        String userId = const Uuid().v4();
 
+        // คำนวณ BMR, TDEE, โปรตีน, น้ำตาล และไขมัน
+        double bmr = _calculateBMR();
+        int tdee = _calculateTDEE(bmr).round();
+        double protein = _calculateProtein();
+        double sugar = _calculateSugar();
+        double fat = _calculateFat();
+
+        // บันทึกข้อมูลพื้นฐานไปยัง collection users
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'user_id': userId,
+          'name': _name,
+          'height': _height,
+          'weight': _weight,
+          'birthdate': _birthdate,
+          'age': age,
+          'gender': _selectedGender,
+          'activity_level': _selectedActivityLevel,
+        });
+
+        // บันทึก TDEE, โปรตีน, น้ำตาล และไขมันไปยัง collection user_record
+        await FirebaseFirestore.instance.collection('user_record').doc(user.uid).set({
+          'user_id': userId,
+          'tdee': tdee, // บันทึก TDEE
+          'protein': protein, // บันทึกโปรตีน
+          'sugar': sugar, // บันทึกน้ำตาล
+          'fat': fat, // บันทึกไขมัน
+          'user_eat': 0, // เริ่มต้น user_eat ที่ 0
+          'protein_eat' : 0, // เริ่มต้น protein ที่ 0
+          'sugar_eat' : 0, // เริ่มต้น sugar ที่ 0
+          'fat_eat' : 0, // เริ่มต้น fat ที่ 0
+          'timestamp': FieldValue.serverTimestamp(), // บันทึก timestamp
+        });
+
+        // เปลี่ยนหน้าไปยัง main page
+        Navigator.pushReplacementNamed(context, '/main');
+      }
+    } catch (e) {
+      setState(() {
+        _isSaving = false;
+      });
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Save Failed'),
+          content: const Text('An error occurred. Please try again.'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
 
   void _selectBirthdate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(

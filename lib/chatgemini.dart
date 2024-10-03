@@ -32,7 +32,7 @@ class _ChatGeminiState extends State<ChatGemini> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: const Text("Gemini Chat"),
+        title: const Text("Heathy Chat"),
       ),
       body: Column(
         children: [

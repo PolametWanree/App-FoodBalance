@@ -10,6 +10,7 @@ class _AddFoodPageState extends State<AddFoodPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _foodNameController = TextEditingController();
   final TextEditingController _typeController = TextEditingController();
+  final TextEditingController _imageNameController = TextEditingController();
 
   // เพิ่ม TextEditingController สำหรับข้อมูลโภชนาการ
   final TextEditingController _carbsController = TextEditingController();
@@ -40,6 +41,7 @@ class _AddFoodPageState extends State<AddFoodPage> {
       FirebaseFirestore.instance.collection('food').add({
         'name': _foodNameController.text.isNotEmpty ? _foodNameController.text : '-',
         'type': _typeController.text.isNotEmpty ? _typeController.text : '-',
+        'image': _imageNameController.text.isNotEmpty ? _imageNameController.text : '-',
         'nutrition': {
           'calories': _caloriesController.text.isNotEmpty ? _caloriesController.text : '-', // เพิ่มแคลอรี่
           'carbohydrates': _carbsController.text.isNotEmpty ? _carbsController.text : '-',
@@ -94,6 +96,8 @@ class _AddFoodPageState extends State<AddFoodPage> {
     _ironController.clear();
     _magnesiumController.clear();
     _fiberController.clear();
+    _imageNameController.clear();
+
   }
 
   @override
@@ -122,6 +126,11 @@ class _AddFoodPageState extends State<AddFoodPage> {
                 controller: _typeController,
                 decoration: InputDecoration(labelText: 'ประเภท'),
               ),
+              TextFormField(
+                controller: _imageNameController,
+                decoration: InputDecoration(labelText: 'ชื่อรูปภาพ'),
+              ),
+              
               Text('ข้อมูลโภชนาการ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               TextFormField(
                 controller: _carbsController,
