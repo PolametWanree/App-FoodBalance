@@ -28,6 +28,9 @@ dependencies:
   fl_chart: ^0.69.0
   firebase_storage: ^12.3.2
   cached_network_image: ^3.4.1
+  google_sign_in: ^6.2.1
+  icons_plus: ^5.0.0
+  hugeicons: ^0.0.7
 
 dev_dependencies:
   flutter_test:
@@ -43,3 +46,6 @@ flutter:
     - assets/images/1.jpg
     - assets/images/2.png
     - assets/images/3.png
+    - assets/images/BG.png
+    - assets/images/GG.png
+

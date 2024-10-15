@@ -32,7 +32,7 @@ class MyApp extends StatelessWidget {
       ),
       initialRoute: '/login',
       routes: {
-        '/login': (context) => const LoginPage(),
+        '/login': (context) => LoginPage(),
         '/register': (context) => const RegisterPage(),
         '/height_weight': (context) => const HeightWeightPage(),
         '/main': (context) =>  MainScreen(),

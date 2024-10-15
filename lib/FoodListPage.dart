@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // ใช้สำหรับดึงข้อมูลผู้ใช้ที่ล็อกอิน
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:foodbalance4/EditFoodPage.dart'; // ใช้สำหรับดึงข้อมูลผู้ใช้ที่ล็อกอิน
 
 // ย้าย DonutChartPainter ออกมาที่ระดับ top-level
 class DonutChartPainter extends CustomPainter {
@@ -167,8 +168,8 @@ class _FoodListPageState extends State<FoodListPage> {
                             CustomPaint(
                               size: Size(40, 40),
                               painter: DonutChartPainter(
-                                percentage: double.tryParse(foodItem['nutrition']['fats'] ?? '0') ?? 0,
-                                label: '🧈', // S for Sugar
+                                percentage: double.tryParse(foodItem['nutrition']['carbohydrates'] ?? '0') ?? 0,
+                                label: '🍞', 
                                 color: const Color.fromARGB(255, 255, 209, 94),
                               ),
                             ),
@@ -267,6 +268,8 @@ class _FoodListPageState extends State<FoodListPage> {
                             'ไขมัน', foodItem['nutrition']['fats'], 70),
                         buildProgressBar(
                             'kcal', foodItem['nutrition']['calories'], 2000),
+                        buildProgressBar(
+                            'น้ำตาล', foodItem['nutrition']['sugar'], 25),
                         SizedBox(height: 10),
                         Text('วิตามิน',
                             style: TextStyle(
@@ -318,12 +321,31 @@ class _FoodListPageState extends State<FoodListPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.orangeAccent,
+                                    ),
+                                    onPressed: () {
+                                      Navigator.of(context).pop(); // ปิด dialog
+                                      // นำทางไปยังหน้าแก้ไข
+                                      Navigator.of(context).push(MaterialPageRoute(
+                                        builder: (context) => EditFoodPage(foodId: foodId),
+                                      ));
+                                    },
+                                    child: Text('แก้ไข', style: TextStyle(color: Colors.white)),
+                                  ),
+                      ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,
                         ),
                         onPressed: () async {
                           await addFoodToHistory(context, foodItem); // เพิ่มอาหารในประวัติ
-                          await updateUserEat(context, foodItem['nutrition']['calories']); // อัปเดต user_eat ใน user_record
+                          await updateUserEat(
+    context, 
+    foodItem['nutrition']['calories'], 
+    foodItem['nutrition']['carbohydrates'], 
+    foodItem['nutrition']['proteins'], 
+    foodItem['nutrition']['sugar']
+  );  // อัปเดต user_eat ใน user_record
                           await updateConsumedCount(context); // อัปเดต consumed ใน user_consumed
 
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -380,7 +402,7 @@ class _FoodListPageState extends State<FoodListPage> {
   }
 
   // ฟังก์ชันอัปเดต user_eat ใน collection user_record
-  Future<void> updateUserEat(BuildContext context, dynamic kcal) async {
+Future<void> updateUserEat(BuildContext context, dynamic kcal, dynamic carbohydrates, dynamic proteins, dynamic sugar) async {
     try {
       User? currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser != null) {
@@ -390,16 +412,27 @@ class _FoodListPageState extends State<FoodListPage> {
             FirebaseFirestore.instance.collection('user_record').doc(userId);
 
         DocumentSnapshot doc = await userRecordRef.get();
-        int currentUserEat = 0;
+         int currentUserEat = 0;
+          int currentCarbohydratesEat = 0;
+          int currentProteinsEat = 0;
+          int currentSugarEat = 0;
         if (doc.exists) {
           currentUserEat = doc.get('user_eat') ?? 0;
+          currentCarbohydratesEat = doc.get('carbohydrate_eat') ?? 0;
+          currentProteinsEat = doc.get('protein_eat') ?? 0;
+          currentSugarEat = doc.get('sugar_eat') ?? 0;
         }
 
-        int kcalValue =
-            (kcal != null && kcal is String) ? int.parse(kcal) : (kcal ?? 0);
-
+        int kcalValue = (kcal != null && kcal is String) ? int.parse(kcal) : (kcal ?? 0);
+        int carbohydratesValue = (carbohydrates != null && carbohydrates is String) ? int.parse(carbohydrates) : (carbohydrates ?? 0);
+        int proteinsValue = (proteins != null && proteins is String) ? int.parse(proteins) : (proteins ?? 0);
+        int sugarValue = (sugar != null && sugar is String) ? int.parse(sugar) : (sugar ?? 0);
+        
         await userRecordRef.update({
           'user_eat': currentUserEat + kcalValue,
+          'carbohydrate_eat': currentCarbohydratesEat + carbohydratesValue,
+          'protein_eat': currentProteinsEat + proteinsValue,
+          'sugar_eat': currentSugarEat + sugarValue,
           'timestamp': Timestamp.now(),
         });
       }

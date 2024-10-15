@@ -84,13 +84,187 @@ class HalfCircleProgress extends CustomPainter {
   }
 }
 
+// เพิ่ม FullCircleProgress ที่จะใช้ใน Container ใหม่
+class FullCircleProgress extends CustomPainter {
+  final double progress;
+  final Color color;
+
+
+  FullCircleProgress(this.progress, this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    Paint baseCircle = Paint()
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 12
+      ..color = Colors.grey.shade300;
+
+    Paint progressCircle = Paint()
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 10
+      ..color = color;
+
+    // วาดพื้นฐานวงกลม
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(size.width / 2, size.height / 2), radius: size.width / 2.5),
+      0, // เริ่มที่ 0 องศา
+      6.28, // 360 องศา (วงกลมเต็ม)
+      false,
+      baseCircle,
+    );
+
+    // วาด progress วงกลม
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(size.width / 2, size.height / 2), radius: size.width / 2.5),
+      -1.57, // เริ่มที่ 270 องศา (ด้านบน)
+      6.28 * (progress / 100), // คำนวณตาม progress ที่ส่งมา (0 - 100)
+      false,
+      progressCircle,
+    );
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) {
+    return true;
+  }
+}
+
 class MainMenu extends StatefulWidget {
   @override
   _MainMenuState createState() => _MainMenuState();
 }
 
 class _MainMenuState extends State<MainMenu> {
-  double progress = 50; // เริ่มต้น progress ที่ 50%
+  double progress1 = 50; // เริ่มต้น progress ที่ 50%
+  double progress2 = 30; // Progress สำหรับวงที่ 2
+  double progress3 = 70; // Progress สำหรับวงที่ 3
+
+
+
+//นี่คือส่วนในการรีเซตค่า burned ทุกครั้งที่ขึ้นวันใหม่ เพื่อให้แอพมีความเป็น daily use มากขึ้น
+
+ @override
+  void initState() {
+    super.initState();
+    // เรียกใช้ resetBurnedIfNewDay ใน initState ของ MainMenu
+    resetBurnedIfNewDay(context);
+    resetDaily(context);
+    resetConsumed(context);
+  }
+
+ Future<void> resetBurnedIfNewDay(BuildContext context) async {
+    try {
+      User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        String userId = currentUser.uid;
+
+        DocumentReference userBurnedRef =
+            FirebaseFirestore.instance.collection('user_burned').doc(userId);
+
+        DocumentSnapshot doc = await userBurnedRef.get();
+
+        if (doc.exists) {
+          Map<String, dynamic>? data = doc.data() as Map<String, dynamic>?;
+
+          if (data != null && data.containsKey('lastUpdated')) {
+            Timestamp lastUpdatedTimestamp = data['lastUpdated'];
+            DateTime lastUpdatedDate = lastUpdatedTimestamp.toDate();
+
+            DateTime now = DateTime.now();
+
+            // ตรวจสอบว่าวันเปลี่ยนหรือยัง
+            if (lastUpdatedDate.day != now.day || lastUpdatedDate.month != now.month || lastUpdatedDate.year != now.year) {
+              // ถ้าเป็นวันใหม่ ให้รีเซ็ตค่า burned เป็น 0
+              await userBurnedRef.set({
+                'burned': 0, // รีเซ็ต burned เป็น 0
+                'lastUpdated': Timestamp.now(), // อัปเดต lastUpdated เป็นเวลาปัจจุบัน
+              }, SetOptions(merge: true));
+  
+            }
+          }
+        }
+      }
+    } catch (e) {
+    }
+  }
+
+Future<void> resetDaily(BuildContext context) async {
+    try {
+      User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        String userId = currentUser.uid;
+
+        DocumentReference userBurnedRef =
+            FirebaseFirestore.instance.collection('user_record').doc(userId);
+
+        DocumentSnapshot doc = await userBurnedRef.get();
+
+        if (doc.exists) {
+          Map<String, dynamic>? data = doc.data() as Map<String, dynamic>?;
+
+          if (data != null && data.containsKey('timestamp')) {
+            Timestamp lastUpdatedTimestamp = data['timestamp'];
+            DateTime lastUpdatedDate = lastUpdatedTimestamp.toDate();
+
+            DateTime now = DateTime.now();
+
+            // ตรวจสอบว่าวันเปลี่ยนหรือยัง
+            if (lastUpdatedDate.day != now.day || lastUpdatedDate.month != now.month || lastUpdatedDate.year != now.year) {
+              // ถ้าเป็นวันใหม่ ให้รีเซ็ตค่า burned เป็น 0
+              await userBurnedRef.set({
+                'user_eat': 0, // รีเซ็ต burned เป็น 0
+                'carbohydrate_eat': 0,
+                'protein_eat': 0,
+                'sugar_eat': 0,
+                'timestamp': Timestamp.now(), // อัปเดต lastUpdated เป็นเวลาปัจจุบัน
+              }, SetOptions(merge: true));
+  
+            }
+          }
+        }
+      }
+    } catch (e) {
+    }
+  }
+
+
+Future<void> resetConsumed(BuildContext context) async {
+    try {
+      User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        String userId = currentUser.uid;
+
+        DocumentReference userBurnedRef =
+            FirebaseFirestore.instance.collection('user_consumed').doc(userId);
+
+        DocumentSnapshot doc = await userBurnedRef.get();
+
+        if (doc.exists) {
+          Map<String, dynamic>? data = doc.data() as Map<String, dynamic>?;
+
+          if (data != null && data.containsKey('lastUpdated')) {
+            Timestamp lastUpdatedTimestamp = data['lastUpdated'];
+            DateTime lastUpdatedDate = lastUpdatedTimestamp.toDate();
+
+            DateTime now = DateTime.now();
+
+            // ตรวจสอบว่าวันเปลี่ยนหรือยัง
+            if (lastUpdatedDate.day != now.day || lastUpdatedDate.month != now.month || lastUpdatedDate.year != now.year) {
+              // ถ้าเป็นวันใหม่ ให้รีเซ็ตค่า burned เป็น 0
+              await userBurnedRef.set({
+                'count': 0, // รีเซ็ต burned เป็น 0
+                'timestamp': Timestamp.now(), // อัปเดต lastUpdated เป็นเวลาปัจจุบัน
+              }, SetOptions(merge: true));
+  
+            }
+          }
+        }
+      }
+    } catch (e) {
+    }
+  }
 
   void _showCompletionDialog() {
     showDialog(
@@ -143,93 +317,12 @@ class _MainMenuState extends State<MainMenu> {
     );
   }
 
-
   void _decreaseProgress() {
     setState(() {
-      if (progress > 0) {
-        progress -= 10; // ลด progress ทีละ 10%
+      if (progress1 > 0) {
+        progress1 -= 10; // ลด progress ทีละ 10%
       }
     });
-  }
-
-  // ฟังก์ชันดึงข้อมูล TDEE ของผู้ใช้แต่ละคนจาก Firestore
-  Stream<DocumentSnapshot> _getUserTDEE(String userId) {
-    return FirebaseFirestore.instance
-        .collection('user_record')
-        .doc(userId)
-        .snapshots();
-  }
-
-  // ฟังก์ชันดึงข้อมูล consumed ของผู้ใช้แต่ละคนจาก Firestore
-  Stream<DocumentSnapshot> _getUserConsumedCount(String userId) {
-    return FirebaseFirestore.instance
-        .collection('user_consumed') // ตรวจสอบว่าใช้ collection ชื่อนี้จริง ๆ
-        .doc(userId)
-        .snapshots();
-  }
-
-  void checkAndResetUserConsumedCount(String userId) async {
-  DocumentSnapshot snapshot = await FirebaseFirestore.instance
-      .collection('user_consumed')
-      .doc(userId)
-      .get();
-
-  if (snapshot.exists) {
-    var data = snapshot.data() as Map<String, dynamic>?;
-    var lastUpdated = data?['lastUpdated'] as Timestamp?;
-
-    if (lastUpdated != null) {
-      DateTime lastUpdateDate = lastUpdated.toDate();
-      DateTime currentDate = DateTime.now();
-
-      // ตรวจสอบว่าวันปัจจุบันกับวันสุดท้ายที่อัปเดตต่างกันหรือไม่
-      if (lastUpdateDate.day != currentDate.day ||
-          lastUpdateDate.month != currentDate.month ||
-          lastUpdateDate.year != currentDate.year) {
-        // ถ้าวันใหม่ ให้รีเซ็ต count เป็น 0
-        await FirebaseFirestore.instance
-            .collection('user_consumed')
-            .doc(userId)
-            .update({
-          'count': 0,
-          'lastUpdated': Timestamp.fromDate(currentDate), // อัปเดตวันที่ใหม่
-        });
-      }
-    }
-  }
-}
-
-
-  // ฟังก์ชันตรวจสอบและรีเซ็ตค่า user_eat เมื่อขึ้นวันใหม่
-  void checkAndResetUserEat(String userId) async {
-    DocumentSnapshot snapshot = await FirebaseFirestore.instance
-        .collection('user_record')
-        .doc(userId)
-        .get();
-
-    if (snapshot.exists) {
-      var data = snapshot.data() as Map<String, dynamic>?;
-      var timestamp = data?['timestamp'] as Timestamp?;
-
-      if (timestamp != null) {
-        DateTime lastUpdateDate = timestamp.toDate();
-        DateTime currentDate = DateTime.now();
-
-        // ตรวจสอบว่าวันปัจจุบันกับวันสุดท้ายที่อัปเดตต่างกันหรือไม่
-        if (lastUpdateDate.day != currentDate.day ||
-            lastUpdateDate.month != currentDate.month ||
-            lastUpdateDate.year != currentDate.year) {
-          // ถ้าวันใหม่ ให้รีเซ็ต user_eat เป็น 0
-          await FirebaseFirestore.instance
-              .collection('user_record')
-              .doc(userId)
-              .update({
-            'user_eat': 0,
-            'timestamp': Timestamp.fromDate(currentDate), // อัปเดตวันที่ใหม่
-          });
-        }
-      }
-    }
   }
 
   @override
@@ -237,10 +330,6 @@ class _MainMenuState extends State<MainMenu> {
     // รับ userId จาก Firebase Authentication
     final user = FirebaseAuth.instance.currentUser;
     final userId = user?.uid;
-
-    // เรียกฟังก์ชันตรวจสอบและรีเซ็ต user_eat เมื่อขึ้นวันใหม่
-    checkAndResetUserEat(userId ?? '');
-    checkAndResetUserConsumedCount(userId ?? '');
 
     return Scaffold(
       backgroundColor: Color.fromARGB(255, 241, 255, 244),
@@ -303,7 +392,7 @@ class _MainMenuState extends State<MainMenu> {
                         child: StreamBuilder<DocumentSnapshot>(
                           stream: FirebaseFirestore.instance
                               .collection('user_record') // ตรวจสอบว่าชื่อ collection ถูกต้อง
-                              .doc(userId)
+                              .doc(FirebaseAuth.instance.currentUser?.uid)
                               .snapshots(),
                           builder: (context, snapshot) {
                             if (snapshot.hasData) {
@@ -325,7 +414,10 @@ class _MainMenuState extends State<MainMenu> {
                       ),
                       // ใช้ StreamBuilder เพื่อดึงข้อมูล TDEE ของผู้ใช้
                       StreamBuilder<DocumentSnapshot>(
-                        stream: _getUserTDEE(userId ?? ''),
+                        stream: FirebaseFirestore.instance
+                            .collection('user_record')
+                            .doc(FirebaseAuth.instance.currentUser?.uid)
+                            .snapshots(),
                         builder: (context, snapshot) {
                           if (snapshot.hasData) {
                             var data = snapshot.data!.data() as Map<String, dynamic>?;
@@ -385,7 +477,10 @@ class _MainMenuState extends State<MainMenu> {
                           children: [
                             // ใช้ StreamBuilder เพื่อแสดงข้อมูล consumed
                             StreamBuilder<DocumentSnapshot>(
-                              stream: _getUserConsumedCount(userId ?? ''),
+                              stream: FirebaseFirestore.instance
+                                  .collection('user_consumed') // ตรวจสอบว่าใช้ collection ชื่อนี้จริง ๆ
+                                  .doc(FirebaseAuth.instance.currentUser?.uid)
+                                  .snapshots(),
                               builder: (context, snapshot) {
                                 if (snapshot.hasData) {
                                   var data = snapshot.data!.data() as Map<String, dynamic>?;
@@ -413,9 +508,27 @@ class _MainMenuState extends State<MainMenu> {
                         offset: Offset(120, 0),
                         child: Column(
                           children: [
-                            Text(
-                              '0',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                            // ใช้ StreamBuilder เพื่อแสดงข้อมูล consumed
+                            StreamBuilder<DocumentSnapshot>(
+                              stream: FirebaseFirestore.instance
+                                  .collection('user_burned') // ตรวจสอบว่าใช้ collection ชื่อนี้จริง ๆ
+                                  .doc(FirebaseAuth.instance.currentUser?.uid)
+                                  .snapshots(),
+                              builder: (context, snapshot) {
+                                if (snapshot.hasData) {
+                                  var data = snapshot.data!.data() as Map<String, dynamic>?;
+                                  var burned = data?['burned'] ?? 0; // ตรวจสอบให้แน่ใจว่า 'burned' คือฟิลด์ที่เก็บค่า burned
+                                  return Text(
+                                    '$burned',
+                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                  );
+                                } else {
+                                  return Text(
+                                    '0', // แสดงค่าเริ่มต้นเป็น 0 ถ้าไม่สามารถดึงข้อมูลได้
+                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                  );
+                                }
+                              },
                             ),
                             Text(
                               'Burned',
@@ -424,113 +537,158 @@ class _MainMenuState extends State<MainMenu> {
                           ],
                         ),
                       ),
-
                     ],
                   ),
                 ],
               ),
-              
             ),
-            
           ),
-          SizedBox(height: 20),
-        Text(
-          "ประวัติการบริโภคอาหาร",
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        SizedBox(height: 10),
+          SizedBox(height: 2),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 15),
+            child: Container(
+              // Container ที่เพิ่มกราฟวงกลม 3 วง
+              width: 350,
+              height: 130, // เพิ่มความสูงให้เหมาะกับกราฟวงกลม
+              decoration: BoxDecoration(
+                color: const Color.fromARGB(255, 255, 255, 255),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 10,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  StreamBuilder<DocumentSnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('user_record')
+                        .doc(FirebaseAuth.instance.currentUser?.uid)
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        var data = snapshot.data!.data() as Map<String, dynamic>?;
 
-        // ส่วนประวัติการบริโภคอาหารเป็น Slider แนวนอน
-        SizedBox(
-          height: 200, // กำหนดความสูงของ Slider
-          child: StreamBuilder<QuerySnapshot>(
-            stream: _getUserFoodHistory(userId ?? ''),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return Center(child: CircularProgressIndicator());
-              }
+                        // การดึงค่าของ carbohydrate และ carbohydrate_eat
+                        var carb = data?['carbohydrate'] ?? 0;
+                        var carbEat = data?['carbohydrate_eat'] ?? 0;
 
-              var foodHistory = snapshot.data!.docs;
+                        // คำนวณเปอร์เซ็นต์ความคืบหน้าสำหรับ carbohydrate
+                        double progressCarb = carbEat >= carb ? 100 : (carbEat / carb) * 100;
 
-              return ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: foodHistory.length,
-                itemBuilder: (context, index) {
-                  var food = foodHistory[index].data() as Map<String, dynamic>;
-
-                  // ตรวจสอบว่า 'added_at' มีค่าเป็น null หรือไม่
-                  Timestamp? timestamp = food['added_at'] as Timestamp?;
-                  String formattedDate = '';
-
-                  if (timestamp != null) {
-                    DateTime addedAt = timestamp.toDate(); // แปลงเป็น DateTime
-                    formattedDate =
-                        "${addedAt.day}/${addedAt.month}/${addedAt.year} ${addedAt.hour}:${addedAt.minute}";
-                  } else {
-                    formattedDate = 'ไม่มีข้อมูลเวลา';
-                  }
-
-                  return Container(
-                    width: 200,
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 10, horizontal: 5),
-                    child: Card(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 4,
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              food['food_name'] ?? '-',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blueAccent,
+                        return SizedBox(
+                          height: 70,
+                          width: 70,
+                            child: CustomPaint(
+                              painter: FullCircleProgress(progressCarb, const Color.fromARGB(255, 255, 178, 46)), // วงกลมที่ 1
+                              child: Center(
+                                child: Text(
+                                  '🍞', // แสดงเปอร์เซ็นต์ความคืบหน้าในกราฟวงกลม
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black, // เปลี่ยนสีตัวอักษรตามที่ต้องการ
+                                  ),
+                                ),
                               ),
                             ),
-                            SizedBox(height: 5),
-                            Text(
-                              'เพิ่มเมื่อ: $formattedDate',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade700,
+                          );
+                      } else {
+                        return Center(child: CircularProgressIndicator());
+                      }
+                    },
+                  ),
+                  StreamBuilder<DocumentSnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('user_record')
+                        .doc(FirebaseAuth.instance.currentUser?.uid)
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        var data = snapshot.data!.data() as Map<String, dynamic>?;
+
+                        // การดึงค่าของ protein และ protein_eat
+                        var protein = data?['protein'] ?? 0;
+                        var proteinEat = data?['protein_eat'] ?? 0;
+
+                        // คำนวณเปอร์เซ็นต์ความคืบหน้าสำหรับ protein
+                        double progressProtein = proteinEat >= protein ? 100 : (proteinEat / protein) * 100;
+
+                        return SizedBox(
+                          height: 70,
+                          width: 70,
+                          child: CustomPaint(
+                              painter: FullCircleProgress(progressProtein,Colors.red), // วงกลมที่ 1
+                              child: Center(
+                                child: Text(
+                                  '🥩', // แสดงเปอร์เซ็นต์ความคืบหน้าในกราฟวงกลม
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black, // เปลี่ยนสีตัวอักษรตามที่ต้องการ
+                                  ),
+                                ),
                               ),
                             ),
-                            SizedBox(height: 10),
-                            Text(
-                              'kcal: ${food['kcal'] ?? '-'}',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.green,
+                          );
+                      } else {
+                        return Center(child: CircularProgressIndicator());
+                      }
+                    },
+                  ),
+                  StreamBuilder<DocumentSnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('user_record')
+                        .doc(FirebaseAuth.instance.currentUser?.uid)
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        var data = snapshot.data!.data() as Map<String, dynamic>?;
+
+                        // การดึงค่าของ sugar และ sugar_eat
+                        var sugar = data?['sugar'] ?? 0;
+                        var sugarEat = data?['sugar_eat'] ?? 0;
+
+                        // คำนวณเปอร์เซ็นต์ความคืบหน้าสำหรับ sugar
+                        double progressSugar = sugarEat >= sugar ? 100 : (sugarEat / sugar) * 100;
+
+                        return SizedBox(
+                          height: 70,
+                          width: 70,
+                          child: CustomPaint(
+                              painter: FullCircleProgress(progressSugar,const Color.fromARGB(255, 138, 77, 55)), // วงกลมที่ 1
+                              child: Center(
+                                child: Text(
+                                  '🍫', // แสดงเปอร์เซ็นต์ความคืบหน้าในกราฟวงกลม
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black, // เปลี่ยนสีตัวอักษรตามที่ต้องการ
+                                  ),
+                                ),
                               ),
                             ),
-                            // คุณสามารถเพิ่มข้อมูลเพิ่มเติมที่ต้องการแสดงในการ์ด
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
+                          );
+                      } else {
+                        return Center(child: CircularProgressIndicator());
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
-      ],
-    ),
-  );
-}
-
-  Stream<QuerySnapshot> _getUserFoodHistory(String userId) {
-    return FirebaseFirestore.instance
-        .collection('user_addFood')
-        .where('user_id', isEqualTo: userId) // กรองเฉพาะข้อมูลของผู้ใช้ที่ล็อกอิน
-        .snapshots();
+        ],
+      ),
+    );
   }
 }
+
+
 
 void main() {
   runApp(MaterialApp(home: MainMenu()));

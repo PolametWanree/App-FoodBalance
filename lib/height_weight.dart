@@ -57,9 +57,9 @@ class _HeightWeightPageState extends State<HeightWeightPage> {
     return 0.8 * _weight;
   }
 
-  // ฟังก์ชันคำนวณไขมันที่ต้องการต่อวัน
-  double _calculateFat() {
-    return 0.3 * _weight;
+  // ฟังก์ชันคำนวณคาร์โบไฮเดรตที่ต้องการต่อวัน
+  double _calculateCarbohydrate(double tdee) {
+    return (tdee * 0.55) / 4; // 55% ของ TDEE แบ่งเป็นกรัม (1 กรัมคาร์โบไฮเดรตให้พลังงาน 4 แคลอรี่)
   }
 
   // ฟังก์ชันคำนวณน้ำตาลที่แนะนำต่อวัน (แนะนำจาก WHO)
@@ -104,12 +104,12 @@ class _HeightWeightPageState extends State<HeightWeightPage> {
         // Generate a random user_id
         String userId = const Uuid().v4();
 
-        // คำนวณ BMR, TDEE, โปรตีน, น้ำตาล และไขมัน
+        // คำนวณ BMR, TDEE, โปรตีน, น้ำตาล และคาร์โบไฮเดรต
         double bmr = _calculateBMR();
         int tdee = _calculateTDEE(bmr).round();
         double protein = _calculateProtein();
         double sugar = _calculateSugar();
-        double fat = _calculateFat();
+        double carbohydrate = _calculateCarbohydrate(tdee.toDouble()); // คำนวณคาร์โบไฮเดรต
 
         // บันทึกข้อมูลพื้นฐานไปยัง collection users
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
@@ -123,19 +123,21 @@ class _HeightWeightPageState extends State<HeightWeightPage> {
           'activity_level': _selectedActivityLevel,
         });
 
-        // บันทึก TDEE, โปรตีน, น้ำตาล และไขมันไปยัง collection user_record
-        await FirebaseFirestore.instance.collection('user_record').doc(user.uid).set({
-          'user_id': userId,
-          'tdee': tdee, // บันทึก TDEE
-          'protein': protein, // บันทึกโปรตีน
-          'sugar': sugar, // บันทึกน้ำตาล
-          'fat': fat, // บันทึกไขมัน
-          'user_eat': 0, // เริ่มต้น user_eat ที่ 0
-          'protein_eat' : 0, // เริ่มต้น protein ที่ 0
-          'sugar_eat' : 0, // เริ่มต้น sugar ที่ 0
-          'fat_eat' : 0, // เริ่มต้น fat ที่ 0
-          'timestamp': FieldValue.serverTimestamp(), // บันทึก timestamp
-        });
+        // บันทึก TDEE, โปรตีน, น้ำตาล และคาร์โบไฮเดรตไปยัง collection user_record
+        // บันทึก TDEE, โปรตีน, น้ำตาล และคาร์โบไฮเดรตไปยัง collection user_record
+          await FirebaseFirestore.instance.collection('user_record').doc(user.uid).set({
+            'user_id': userId,
+            'tdee': tdee, // บันทึก TDEE
+            'protein': protein, // บันทึกโปรตีน
+            'sugar': sugar, // บันทึกน้ำตาล
+            'carbohydrate': carbohydrate.round(), // บันทึกคาร์โบไฮเดรตเป็นจำนวนเต็ม
+            'user_eat': 0, // เริ่มต้น user_eat ที่ 0
+            'protein_eat': 0, // เริ่มต้น protein ที่ 0
+            'sugar_eat': 0, // เริ่มต้น sugar ที่ 0
+            'carbohydrate_eat': 0, // เริ่มต้น carbohydrate ที่ 0
+            'timestamp': FieldValue.serverTimestamp(), // บันทึก timestamp
+          });
+
 
         // เปลี่ยนหน้าไปยัง main page
         Navigator.pushReplacementNamed(context, '/main');

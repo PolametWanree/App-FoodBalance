@@ -1,29 +1,47 @@
 {
-    "project_info": {
-      "project_number": "437153686469",
-      "project_id": "foodbalance4-46dd5",
-      "storage_bucket": "foodbalance4-46dd5.appspot.com"
-    },
-    "client": [
-      {
-        "client_info": {
-          "mobilesdk_app_id": "1:437153686469:android:ea6c2d7c1797fe348de1ac",
-          "android_client_info": {
-            "package_name": "com.example.foodbalance4"
+  "project_info": {
+    "project_number": "437153686469",
+    "project_id": "foodbalance4-46dd5",
+    "storage_bucket": "foodbalance4-46dd5.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:437153686469:android:ea6c2d7c1797fe348de1ac",
+        "android_client_info": {
+          "package_name": "com.example.foodbalance4"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "437153686469-b5rl5ctid6c789ncct53u8ufvfl5cks4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.foodbalance4",
+            "certificate_hash": "1093fdc472bf588976ae48b0afe5a518113e558f"
           }
         },
-        "oauth_client": [],
-        "api_key": [
-          {
-            "current_key": "AIzaSyC_oqec0BS3X4hHQub8iO9wU3o8EAE5-Ew"
-          }
-        ],
-        "services": {
-          "appinvite_service": {
-            "other_platform_oauth_client": []
-          }
+        {
+          "client_id": "437153686469-li1pbka6tp87mn0url4o4q5b66n327jk.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC_oqec0BS3X4hHQub8iO9wU3o8EAE5-Ew"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "437153686469-li1pbka6tp87mn0url4o4q5b66n327jk.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
-    ],
-    "configuration_version": "1"
-  }
+    }
+  ],
+  "configuration_version": "1"
+}
