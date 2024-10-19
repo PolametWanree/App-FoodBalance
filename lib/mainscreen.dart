@@ -43,7 +43,7 @@ class _MainScreenState extends State<MainScreen> {
           width: 80,  // ขนาดความกว้างของวงกลม
           decoration: BoxDecoration(
             shape: BoxShape.circle, // กำหนดรูปทรงวงกลม
-            color: const Color.fromARGB(255, 59, 157, 79), // สีพื้นหลังของวงกลม
+            color: const Color.fromARGB(255, 27, 123, 70), // สีพื้นหลังของวงกลม
             boxShadow: [
               BoxShadow(
                 color: const Color.fromARGB(255, 82, 82, 82).withOpacity(0.7),

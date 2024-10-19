@@ -1,8 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart'; // ใช้สำหรับดึงข้อมูลจาก Firestore
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_background/flutter_background.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:icons_plus/icons_plus.dart';
+import 'package:sensors_plus/sensors_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'tflite.dart';
+import 'dart:math';
+
 
 class SpeechBubblePainter extends CustomPainter {
   @override
@@ -51,13 +60,13 @@ class HalfCircleProgress extends CustomPainter {
     Paint baseCircle = Paint()
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 12
+      ..strokeWidth = 15
       ..color = Colors.grey.shade300;
 
     Paint progressCircle = Paint()
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 10
+      ..strokeWidth = 12
       ..color = Colors.green;
 
     canvas.drawArc(
@@ -98,7 +107,7 @@ class FullCircleProgress extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke
       ..strokeWidth = 12
-      ..color = Colors.grey.shade300;
+      ..color = const Color.fromARGB(255, 255, 255, 255);
 
     Paint progressCircle = Paint()
       ..strokeCap = StrokeCap.round
@@ -140,19 +149,199 @@ class _MainMenuState extends State<MainMenu> {
   double progress1 = 50; // เริ่มต้น progress ที่ 50%
   double progress2 = 30; // Progress สำหรับวงที่ 2
   double progress3 = 70; // Progress สำหรับวงที่ 3
-
+  int _steps = 0;
+  double _previousMagnitude = 0;
+  bool _isDriving = false;
+  StreamSubscription<AccelerometerEvent>? _accelerometerSubscription;
+  StreamSubscription<Position>? _positionSubscription;
+  int _stepGoal = 10000; // กำหนดค่าเริ่มต้นของเป้าหมายการเดิน
+  double _weight = 70; // กำหนดค่าเริ่มต้น
+  double calculateCalories(int steps, double weight) {
+  double strideLength = 0.5; // ความยาวก้าวขา (สมมติ)
+  double distance = steps * strideLength / 1000; // ระยะทางที่เดิน (กิโลเมตร)
+  double met = 3.8; // ค่า MET สำหรับการเดิน
+  return met * weight * distance; // คำนวณแคลอรี่ที่เผาผลาญ
+}
 
 
 //นี่คือส่วนในการรีเซตค่า burned ทุกครั้งที่ขึ้นวันใหม่ เพื่อให้แอพมีความเป็น daily use มากขึ้น
 
- @override
+
+   @override
   void initState() {
     super.initState();
-    // เรียกใช้ resetBurnedIfNewDay ใน initState ของ MainMenu
     resetBurnedIfNewDay(context);
     resetDaily(context);
     resetConsumed(context);
+      loadWeightFromFirestore(); // ดึงข้อมูลน้ำหนัก
+      loadStepsFromPreferences();
+    loadStepsFromFirestore();
+    startTracking();
   }
+
+
+   @override
+  void dispose() {
+    // ปิดการฟังข้อมูลเมื่อ widget ถูกทำลาย
+    _accelerometerSubscription?.cancel();
+    _positionSubscription?.cancel();
+    FlutterBackground.disableBackgroundExecution(); // หยุด background service
+    super.dispose();
+  }
+
+   void startTracking() {
+    _accelerometerSubscription = accelerometerEvents.listen((AccelerometerEvent event) {
+      trackSteps(event);
+    });
+    monitorSpeed();
+  }
+
+Future<void> saveCaloriesToFirestore(double caloriesBurned) async {
+  User? currentUser = FirebaseAuth.instance.currentUser;
+  if (currentUser != null) {
+    String userId = currentUser.uid;
+    DocumentReference stepRef = FirebaseFirestore.instance.collection('user_step').doc(userId);
+
+    try {
+      await stepRef.set({
+        'calories_burned': caloriesBurned,
+        'timestamp': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      print("Calories saved successfully!");
+    } catch (e) {
+      print("Failed to save calories: $e");
+    }
+  }
+}
+
+  Future<void> loadWeightFromFirestore() async {
+  User? currentUser = FirebaseAuth.instance.currentUser;
+  if (currentUser != null) {
+    String userId = currentUser.uid;
+    DocumentReference userRef = FirebaseFirestore.instance.collection('users').doc(userId);
+
+    try {
+      DocumentSnapshot doc = await userRef.get();
+      if (doc.exists) {
+        var data = doc.data() as Map<String, dynamic>?;
+        setState(() {
+          _weight = data?['weight']?.toDouble() ?? 70; // ดึงข้อมูลน้ำหนักจาก Firestore
+        });
+      }
+    } catch (e) {
+      print("Failed to load weight: $e");
+    }
+  }
+}
+
+  Future<void> loadStepsFromPreferences() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _steps = prefs.getInt('steps') ?? 0; // ตั้งค่า _steps จากค่าที่บันทึกไว้ในเครื่อง
+    });
+  }
+
+  Future<void> saveStepsToPreferences() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('steps', _steps);
+  }
+
+  Future<void> startBackgroundService() async {
+    bool hasPermissions = await FlutterBackground.hasPermissions;
+    if (!hasPermissions) {
+      // Request permission for background usage
+      await FlutterBackground.initialize();
+    }
+
+    FlutterBackground.enableBackgroundExecution(); // Start background execution
+  }
+
+    void trackSteps(AccelerometerEvent event) {
+  if (_isDriving) {
+    // ไม่ต้องนับก้าวขณะขับรถ
+    return;
+  }
+
+  double magnitude = sqrt(event.x * event.x + event.y * event.y + event.z * event.z);
+  if ((magnitude - _previousMagnitude).abs() > 3) {
+    setState(() {
+      _steps++;
+    });
+    saveStepsToFirestore(); // Save steps to Firestore
+    saveStepsToPreferences(); // Save steps to SharedPreferences
+    
+    // คำนวณแคลอรี่ที่ถูกเผาผลาญ
+    double caloriesBurned = calculateCalories(_steps, _weight);
+    saveCaloriesToFirestore(caloriesBurned); // Save calories to Firestore
+  }
+  _previousMagnitude = magnitude;
+}
+
+   void monitorSpeed() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    LocationPermission permission = await Geolocator.checkPermission();
+
+    if (!serviceEnabled || permission == LocationPermission.deniedForever) {
+      return;
+    }
+
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    _positionSubscription = Geolocator.getPositionStream().listen((Position position) {
+      double speed = position.speed * 3.6; // Convert to km/h
+
+      setState(() {
+        _isDriving = speed > 20;
+      });
+    });
+  }
+
+Future<void> loadStepsFromFirestore() async {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      String userId = currentUser.uid;
+      DocumentReference stepRef = FirebaseFirestore.instance.collection('user_step').doc(userId);
+
+      try {
+        DocumentSnapshot doc = await stepRef.get();
+        if (doc.exists) {
+          var data = doc.data() as Map<String, dynamic>?;
+          setState(() {
+            _steps = data?['steps'] ?? 0; // ตั้งค่า _steps จากข้อมูลที่บันทึกใน Firestore
+          });
+          saveStepsToPreferences(); // บันทึกลงใน SharedPreferences ด้วย
+        }
+      } catch (e) {
+        print("Failed to load steps: $e");
+      }
+    }
+  }
+
+
+
+  Future<void> saveStepsToFirestore() async {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      String userId = currentUser.uid;
+      DocumentReference stepRef = FirebaseFirestore.instance.collection('user_step').doc(userId);
+
+      try {
+        await stepRef.set({
+          'steps': _steps,
+          'timestamp': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        print("Steps saved successfully!");
+      } catch (e) {
+        print("Failed to save steps: $e");
+      }
+    }
+  }
+
+
 
  Future<void> resetBurnedIfNewDay(BuildContext context) async {
     try {
@@ -266,6 +455,45 @@ Future<void> resetConsumed(BuildContext context) async {
     }
   }
 
+
+void _showEditStepGoalDialog(BuildContext context) {
+  TextEditingController goalController = TextEditingController(text: _stepGoal.toString());
+
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: Text('Edit Step Goal'),
+        content: TextField(
+          controller: goalController,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            hintText: 'Enter your new step goal',
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            child: Text('Cancel'),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
+          TextButton(
+            child: Text('Save'),
+            onPressed: () {
+              setState(() {
+                _stepGoal = int.tryParse(goalController.text) ?? 10000; // อัปเดตค่าเป้าหมาย
+              });
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
+      );
+    },
+  );
+}
+
+
   void _showCompletionDialog() {
     showDialog(
       context: context,
@@ -330,6 +558,9 @@ Future<void> resetConsumed(BuildContext context) async {
     // รับ userId จาก Firebase Authentication
     final user = FirebaseAuth.instance.currentUser;
     final userId = user?.uid;
+  double progress = (_steps / _stepGoal).clamp(0.0, 1.0); // คำนวณ progress เป็นเปอร์เซ็นต์
+
+
 
     return Scaffold(
       backgroundColor: Color.fromARGB(255, 241, 255, 244),
@@ -369,14 +600,22 @@ Future<void> resetConsumed(BuildContext context) async {
               /////////////////ปรับ กล่องขาวๆ decoration: BoxDecoration ให้เป็นกล่องสีขาวๆ/////////////////////
               width: 350,
               height: 150,
-              decoration: BoxDecoration(
-                color: Colors.white,
+                decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                  Colors.white,
+                  Colors.grey.shade200,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 10,
-                    spreadRadius: 2,
+                    color: const Color.fromARGB(31, 0, 0, 0),
+                    blurRadius: 5,
+                    spreadRadius: 5,
+                    offset: Offset(0, 5),
                   ),
                 ],
               ),
@@ -550,9 +789,18 @@ Future<void> resetConsumed(BuildContext context) async {
               // Container ที่เพิ่มกราฟวงกลม 3 วง
               width: 350,
               height: 130, // เพิ่มความสูงให้เหมาะกับกราฟวงกลม
-              decoration: BoxDecoration(
+                decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                  const Color.fromARGB(255, 13, 93, 49),
+                const Color.fromARGB(255, 152, 234, 212),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 color: const Color.fromARGB(255, 255, 255, 255),
                 borderRadius: BorderRadius.circular(12),
+                
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black12,
@@ -581,17 +829,24 @@ Future<void> resetConsumed(BuildContext context) async {
                         double progressCarb = carbEat >= carb ? 100 : (carbEat / carb) * 100;
 
                         return SizedBox(
-                          height: 70,
-                          width: 70,
+                          height: 80,
+                          width: 80,
                             child: CustomPaint(
                               painter: FullCircleProgress(progressCarb, const Color.fromARGB(255, 255, 178, 46)), // วงกลมที่ 1
                               child: Center(
                                 child: Text(
                                   '🍞', // แสดงเปอร์เซ็นต์ความคืบหน้าในกราฟวงกลม
                                   style: TextStyle(
-                                    fontSize: 14,
+                                    fontSize: 22,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.black, // เปลี่ยนสีตัวอักษรตามที่ต้องการ
+                                    shadows: [
+                                      Shadow(
+                                        blurRadius: 10.0,
+                                        color: Colors.black.withOpacity(0.5),
+                                        offset: Offset(2.0, 2.0),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
@@ -619,17 +874,24 @@ Future<void> resetConsumed(BuildContext context) async {
                         double progressProtein = proteinEat >= protein ? 100 : (proteinEat / protein) * 100;
 
                         return SizedBox(
-                          height: 70,
-                          width: 70,
+                          height: 80,
+                          width: 80,
                           child: CustomPaint(
                               painter: FullCircleProgress(progressProtein,Colors.red), // วงกลมที่ 1
                               child: Center(
                                 child: Text(
                                   '🥩', // แสดงเปอร์เซ็นต์ความคืบหน้าในกราฟวงกลม
                                   style: TextStyle(
-                                    fontSize: 14,
+                                    fontSize: 22,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.black, // เปลี่ยนสีตัวอักษรตามที่ต้องการ
+                                    shadows: [
+                                      Shadow(
+                                        blurRadius: 10.0,
+                                        color: Colors.black.withOpacity(0.5),
+                                        offset: Offset(2.0, 2.0),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
@@ -657,17 +919,24 @@ Future<void> resetConsumed(BuildContext context) async {
                         double progressSugar = sugarEat >= sugar ? 100 : (sugarEat / sugar) * 100;
 
                         return SizedBox(
-                          height: 70,
-                          width: 70,
+                          height: 80,
+                          width: 80,
                           child: CustomPaint(
                               painter: FullCircleProgress(progressSugar,const Color.fromARGB(255, 138, 77, 55)), // วงกลมที่ 1
                               child: Center(
                                 child: Text(
                                   '🍫', // แสดงเปอร์เซ็นต์ความคืบหน้าในกราฟวงกลม
                                   style: TextStyle(
-                                    fontSize: 14,
+                                    fontSize: 22,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.black, // เปลี่ยนสีตัวอักษรตามที่ต้องการ
+                                    shadows: [
+                                      Shadow(
+                                        blurRadius: 10.0,
+                                        color: Colors.black.withOpacity(0.5),
+                                        offset: Offset(2.0, 2.0),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
@@ -682,10 +951,150 @@ Future<void> resetConsumed(BuildContext context) async {
               ),
             ),
           ),
+          SizedBox(height: 10),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 15),
+          child: Container(
+            width: 350,
+            height: 150,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+              colors: [
+                // const Color.fromARGB(255, 54, 214, 150),x
+                const Color.fromARGB(255, 13, 93, 49),
+                const Color.fromARGB(255, 152, 234, 212),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+              BoxShadow(
+                color: Colors.black12,
+                blurRadius: 10,
+                spreadRadius: 2,
+              ),
+              ],
+            ),
+            padding: const EdgeInsets.all(6),
+            child: Column(
+              children: [
+                Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    Row(
+      children: [
+        Icon(Icons.directions_walk, color: Colors.white),
+        SizedBox(width: 5), // ระยะห่างระหว่างไอคอนและข้อความ
+        Text(
+          'Steps Today',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+      ],
+    ),
+    IconButton(
+      icon: Icon(Icons.edit, color: const Color.fromARGB(255, 255, 255, 255)),
+      iconSize: 20,
+      onPressed: () {
+        _showEditStepGoalDialog(context); // เปิด Dialog เพื่อแก้ไขเป้าหมาย
+      },
+    ),
+  ],
+),
+
+                SizedBox(height: 1),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      ' $_steps ก้าว',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                    Text(
+                      'เป้าหมาย: $_stepGoal ก้าว',
+                      style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: const Color.fromARGB(255, 42, 43, 42)),
+                    ),
+                  ],
+                ),
+Stack(
+  children: [
+    ClipRRect(
+      borderRadius: BorderRadius.circular(20), // กำหนดมุมโค้งของ Progress Bar
+      child: LinearProgressIndicator(
+        value: progress, // ค่า progress ที่คำนวณได้
+        minHeight: 18, // ความหนาของ Progress Bar
+        backgroundColor: const Color.fromARGB(255, 255, 255, 255), // สีพื้นหลังของ Progress Bar
+        color: const Color(0xFF31C38B), // สีของ Progress Bar
+      ),
+    ),
+    Positioned(
+      left: progress * 338, // คำนวณตำแหน่งไอคอนตามค่า progress
+      top: 2, // ปรับตำแหน่งแนวตั้ง
+      child: Icon(
+        TeenyIcons.heart, // ไอคอนรูปวิ่ง
+        color: const Color.fromARGB(255, 32, 93, 69), // สีของไอคอน
+        size: 15, // ขนาดของไอคอน
+      ),
+    ),
+    
+  ],
+),
+SizedBox(height: 5),
+// การแสดงแคลอรี่ที่เผาผลาญ
+StreamBuilder<DocumentSnapshot>(
+  stream: FirebaseFirestore.instance
+      .collection('user_step')
+      .doc(FirebaseAuth.instance.currentUser?.uid)
+      .snapshots(),
+  builder: (context, snapshot) {
+    if (snapshot.hasData) {
+      var data = snapshot.data!.data() as Map<String, dynamic>?;
+      double caloriesBurned = data?['calories_burned'] ?? 0.0;
+
+      return Align(
+        alignment: Alignment.centerLeft, // จัดตำแหน่งไปทางซ้าย
+        child: Container(
+          padding: EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: const Color.fromARGB(255, 255, 255, 255), // Fill color
+            borderRadius: BorderRadius.circular(25),
+          ),
+            child: Row(
+            children: [
+              Icon(FontAwesome.fire_solid, color: Colors.red, size: 15), // Add FontAwesome icon
+              SizedBox(width: 5), // Add some spacing between the icon and the text
+              Text(
+            ' ${caloriesBurned.toStringAsFixed(0)} แคลลอรี่',
+            style: TextStyle(
+              fontSize: 15,
+              color: const Color.fromARGB(255, 0, 0, 0),
+            ),
+          ),
+            ],
+        ),
+         
+      ),
+      );
+    } else {
+      return Align(
+        alignment: Alignment.centerLeft, // จัดตำแหน่งไปทางซ้าย
+        child: Text(
+          'Calories Burned: 0.0 kcal',
+          style: TextStyle(fontSize: 18, color: const Color.fromARGB(255, 212, 41, 41)),
+        ),
+      );
+    }
+  },
+),
+              ],
+            ),
+          ),
+        ),
         ],
       ),
     );
   }
+  
 }
 
 

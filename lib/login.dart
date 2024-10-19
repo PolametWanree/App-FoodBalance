@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:foodbalance4/register.dart';
 import 'package:foodbalance4/mainscreen.dart';
 
@@ -18,6 +19,33 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus(); // ตรวจสอบสถานะล็อกอิน
+  }
+
+  // ตรวจสอบสถานะการล็อกอิน
+  Future<void> _checkLoginStatus() async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  bool? isLoggedIn = prefs.getBool('isLoggedIn');
+
+  // ตรวจสอบเฉพาะกรณีที่สถานะล็อกอินเป็นจริงเท่านั้น
+  if (isLoggedIn == true) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => MainScreen()),
+    );
+  }
+}
+
+
+  // ฟังก์ชันเก็บสถานะล็อกอิน
+  Future<void> _saveLoginStatus() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isLoggedIn', true);
+  }
+
   void _login() async {
     setState(() {
       _isLoading = true;
@@ -28,6 +56,9 @@ class _LoginPageState extends State<LoginPage> {
         email: _emailController.text,
         password: _passwordController.text,
       );
+
+      // เก็บสถานะล็อกอิน
+      await _saveLoginStatus();
 
       setState(() {
         _isLoading = false;
@@ -89,6 +120,9 @@ class _LoginPageState extends State<LoginPage> {
       if (user != null) {
         final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
 
+        // เก็บสถานะล็อกอิน
+        await _saveLoginStatus();
+
         if (!userDoc.exists) {
           Navigator.pushReplacementNamed(context, '/height_weight');
         } else {
@@ -105,142 +139,139 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    body: Stack(
-      children: [
-        // แบ็คกราวด์เป็นรูปภาพ
-        Container(
-          decoration: const BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('assets/images/BG.png'), // ใส่เส้นทางไปยังภาพแบ็คกราวด์ของคุณ
-              fit: BoxFit.cover,
-              alignment: Alignment(0.0, -2), // ขยับตำแหน่งแบ็คกราวด์
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // แบ็คกราวด์เป็นรูปภาพ
+          Container(
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/BG.png'),
+                fit: BoxFit.cover,
+                alignment: Alignment(0.0, -2),
+              ),
             ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32.0), // ปรับ Padding ข้างๆ
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch, // ทำให้ element เต็มความกว้าง
-            children: <Widget>[
-              const SizedBox(height: 100), // เพิ่มช่องว่างด้านบนเพื่อเลื่อนส่วนนี้ลงมา
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16.0), // เพิ่ม Padding ด้านล่าง
-                child: TextField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    labelStyle: TextStyle(color: Color.fromARGB(255, 0, 0, 0)), // เพิ่มสีให้กับ label
-                    filled: true,
-                    fillColor: Color.fromARGB(255, 255, 255, 255), // เพิ่มสีพื้นหลังให้กับช่องกรอก
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(30)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                const SizedBox(height: 100),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: TextField(
+                    controller: _emailController,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      labelStyle: TextStyle(color: Color.fromARGB(255, 0, 0, 0)),
+                      filled: true,
+                      fillColor: Color.fromARGB(255, 255, 255, 255),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(30)),
+                      ),
+                      contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
                     ),
-                    contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 20), // ปรับขนาดของ Padding ภายในช่องกรอก
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 5), // เพิ่ม Padding ด้านล่าง
-                child: TextField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                    filled: true,
-                    labelStyle: TextStyle(color: Color.fromARGB(255, 0, 0, 0)), // เพิ่มสีให้กับ label
-                    fillColor: Color.fromARGB(255, 255, 255, 255), // เพิ่มสีพื้นหลังให้กับช่องกรอก
-                    border: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(30)),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 5),
+                  child: TextField(
+                    controller: _passwordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Password',
+                      filled: true,
+                      labelStyle: TextStyle(color: Color.fromARGB(255, 0, 0, 0)),
+                      fillColor: Color.fromARGB(255, 255, 255, 255),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(30)),
+                      ),
+                      contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
                     ),
-                    contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 20), // ปรับขนาดของ Padding ภายในช่องกรอก
                   ),
                 ),
-              ),
-              const SizedBox(height: 16), // เพิ่มระยะห่างระหว่างปุ่มและช่องกรอก
-              _isLoading
-                  ? const Center(child: CircularProgressIndicator()) // ให้หมุนอยู่ตรงกลาง
-                  : ElevatedButton(
-                      onPressed: _login,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12), // เพิ่มขนาดปุ่ม
+                const SizedBox(height: 16),
+                _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : ElevatedButton(
+                        onPressed: _login,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: const Text('Login',
+                          style: TextStyle(color: Color.fromARGB(255, 0, 0, 0)),
+                        ),
                       ),
-                      child: const Text('Login',
-                        style: TextStyle(color: Color.fromARGB(255, 0, 0, 0)), // สีตัวอักษรของปุ่ม
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: _loginWithGoogle,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: const CircleBorder(),
+                    backgroundColor: Colors.white,
+                  ),
+                  child: Image.asset(
+                    'assets/images/GG.png',
+                    height: 24,
+                    width: 24,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 16.0),
+                  child: Row(
+                    children: <Widget>[
+                      const Expanded(
+                        child: Divider(
+                          color: Color.fromARGB(255, 255, 255, 255),
+                          thickness: 2,
+                        ),
                       ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                        child: const Text(
+                          "OR",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      const Expanded(
+                        child: Divider(
+                          color: Color.fromARGB(255, 255, 255, 255),
+                          thickness: 2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => RegisterPage()),
+                    );
+                  },
+                  child: const Text(
+                    'Don\'t have an account? Register here.',
+                    style: TextStyle(
+                    color: Color.fromARGB(255, 255, 255, 255),
+                    fontSize: 12,
                     ),
-              const SizedBox(height: 16), // เพิ่มระยะห่างระหว่างปุ่ม
-              ElevatedButton(
-                      onPressed: _loginWithGoogle,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12), // ปรับขนาดปุ่ม
-                        shape: const CircleBorder(), // ทำให้ปุ่มเป็นวงกลม
-                        backgroundColor: Colors.white, // พื้นหลังของปุ่มเป็นสีขาว (หรือเปลี่ยนเป็นสีอื่นที่คุณต้องการ)
-                      ),
-                      child: Image.asset(
-                        'assets/images/GG.png', // ใช้ไอคอน Google จากไฟล์ที่คุณมี (ปรับเส้นทางให้ถูกต้อง)
-                        height: 24, // ขนาดของไอคอน
-                        width: 24,
-                      ),
-                    ),
-                    Padding(
-  padding: const EdgeInsets.only(top: 16.0), // เพิ่ม Padding ด้านบน
-  child: Row(
-    children: <Widget>[
-      const Expanded(
-        child: Divider(
-          color: Color.fromARGB(255, 255, 255, 255), // สีของเส้น
-          thickness: 2, // ความหนาของเส้น
-        ),
-      ),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8.0), // เพิ่ม Padding ระหว่างเส้นกับข้อความ
-        child: const Text(
-          "OR", // ข้อความที่ต้องการเพิ่ม
-          style: TextStyle(
-            color: Colors.white, // สีของข้อความ
-            fontSize: 16, // ขนาดตัวอักษร
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+        ],
       ),
-      const Expanded(
-        child: Divider(
-          color: Color.fromARGB(255, 255, 255, 255), // สีของเส้น
-          thickness: 2, // ความหนาของเส้น
-        ),
-      ),
-    ],
-  ),
-),
-
-              const SizedBox(height: 16), // เพิ่มระยะห่างระหว่างปุ่ม
-              TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => RegisterPage()),
-                  );
-                },
-                child: const Text(
-                  'Don\'t have an account? Register here.',
-                  style: TextStyle(
-                  color: Color.fromARGB(255, 255, 255, 255), // สีตัวอักษรของปุ่ม
-                  fontSize: 12, // ปรับขนาดตัวอักษร
-                  ),
-                ),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12), // ปรับขนาดปุ่ม
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-
+    );
+  }
 }

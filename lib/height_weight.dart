@@ -121,6 +121,7 @@ class _HeightWeightPageState extends State<HeightWeightPage> {
           'age': age,
           'gender': _selectedGender,
           'activity_level': _selectedActivityLevel,
+          'roll': 'user'
         });
 
         // บันทึก TDEE, โปรตีน, น้ำตาล และคาร์โบไฮเดรตไปยัง collection user_record

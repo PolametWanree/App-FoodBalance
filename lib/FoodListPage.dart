@@ -128,58 +128,59 @@ class _FoodListPageState extends State<FoodListPage> {
                     ),
                     elevation: 5,
                     child: ListTile(
-                      leading: imageUrl != null
-                          ? Image.network(
-                              imageUrl,
-                              width: 50, // กำหนดขนาดของรูปภาพ
-                              height: 50,
-                              fit: BoxFit.cover,
-                            )
-                          : Icon(Icons.image, size: 50), // ถ้าไม่มีรูปภาพจะแสดงไอคอน
-                      title: Text(foodItem['name'] ?? '-'),
-                      subtitle: Text.rich(
-                        TextSpan(
-                          text: 'แคลอรี่: ', // ข้อความปกติ
-                          style: TextStyle(color: Colors.black), // สีของข้อความปกติ
-                          children: <TextSpan>[
-                            TextSpan(
-                              text: '${foodItem['nutrition']['calories'] ?? '-'}', // ตัวเลขแคลอรี่
-                              style: TextStyle(
-                                  color: const Color.fromARGB(255, 89, 169, 92)), // สีเฉพาะสำหรับตัวเลขแคลอรี่
-                            ),
-                          ],
-                        ),
-                      ),
-                      trailing: Container(
-                        width: 100, // ขนาดของพื้นที่สำหรับกราฟโดนัททั้งสอง
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            // วงแรกสำหรับโปรตีน
-                            CustomPaint(
-                              size: Size(40, 40),
-                              painter: DonutChartPainter(
-                                percentage: double.tryParse(foodItem['nutrition']['proteins'] ?? '0') ?? 0,
-                                label: '🥩', // Empty label
-                                color: const Color.fromARGB(255, 255, 153, 69),
-                              ),
-                            ),
-                            // วงที่สองสำหรับน้ำตาล
-                            CustomPaint(
-                              size: Size(40, 40),
-                              painter: DonutChartPainter(
-                                percentage: double.tryParse(foodItem['nutrition']['carbohydrates'] ?? '0') ?? 0,
-                                label: '🍞', 
-                                color: const Color.fromARGB(255, 255, 209, 94),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      onTap: () {
-                        showFoodDetails(context, foodItems[index].id);
-                      },
-                    ),
+  leading: imageUrl != null
+      ? Image.network(
+          imageUrl,
+          width: 50, // กำหนดขนาดของรูปภาพ
+          height: 50,
+          fit: BoxFit.cover,
+        )
+      : Icon(Icons.image, size: 50), // ถ้าไม่มีรูปภาพจะแสดงไอคอน
+  title: Text(foodItem['name'] ?? '-'),
+  subtitle: Text.rich(
+    TextSpan(
+      text: 'แคลลอรี่: ', // ข้อความปกติ
+      style: TextStyle(color: Colors.black), // สีของข้อความปกติ
+      children: <TextSpan>[
+        TextSpan(
+          text: '${foodItem['nutrition'] != null ? foodItem['nutrition']['calories'] ?? '-' : '-'}', // ตรวจสอบ null ก่อนเข้าถึงค่าแคลอรี่
+          style: TextStyle(
+              color: const Color.fromARGB(255, 89, 169, 92)), // สีเฉพาะสำหรับตัวเลขแคลอรี่
+        ),
+      ],
+    ),
+  ),
+  trailing: Container(
+    width: 100, // ขนาดของพื้นที่สำหรับกราฟโดนัททั้งสอง
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        // วงแรกสำหรับโปรตีน
+        CustomPaint(
+          size: Size(40, 40),
+          painter: DonutChartPainter(
+            percentage: double.tryParse(foodItem['nutrition'] != null ? foodItem['nutrition']['proteins'] ?? '0' : '0') ?? 0,
+            label: '🥩', // Empty label
+            color: const Color.fromARGB(255, 255, 153, 69),
+          ),
+        ),
+        // วงที่สองสำหรับน้ำตาล
+        CustomPaint(
+          size: Size(40, 40),
+          painter: DonutChartPainter(
+            percentage: double.tryParse(foodItem['nutrition'] != null ? foodItem['nutrition']['carbohydrates'] ?? '0' : '0') ?? 0,
+            label: '🍞',
+            color: const Color.fromARGB(255, 255, 209, 94),
+          ),
+        ),
+      ],
+    ),
+  ),
+onTap: () {
+    showFoodDetails(context, foodItems[index].id);
+  },
+),
+
                   );
                 },
               );

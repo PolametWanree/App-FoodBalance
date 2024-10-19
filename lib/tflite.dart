@@ -54,7 +54,7 @@ class _ImageScannerPageState extends State<ImageScannerPage> {
     var inputImage = _processImage(imageBytes);
 
     // Prepare output buffer สำหรับโมเดลที่มีคลาส 3
-    var output = List.filled(5, 0.0).reshape([1, 5]);
+    var output = List.filled(48, 0.0).reshape([1, 48]);
 
     // Run the model if interpreter is available
     if (interpreter != null) {
@@ -109,12 +109,19 @@ class _ImageScannerPageState extends State<ImageScannerPage> {
   }
 
   // ฟังก์ชันเลือกหรือถ่ายภาพ
-  Future<void> pickImage() async {
-    XFile? image = await ImagePicker().pickImage(source: ImageSource.camera);
-    if (image != null) {
-      await scanImage(image);
-    }
+  Future<void> pickImageFromCamera() async {
+  XFile? image = await ImagePicker().pickImage(source: ImageSource.camera);
+  if (image != null) {
+    await scanImage(image);
   }
+}
+
+Future<void> pickImageFromGallery() async {
+  XFile? image = await ImagePicker().pickImage(source: ImageSource.gallery);
+  if (image != null) {
+    await scanImage(image);
+  }
+}
 
   // เช็คว่าชื่ออาหารที่สแกนตรงกับข้อมูลใน Firestore หรือไม่
   Future<void> checkFoodInFirestore(String predictedFood) async {
@@ -433,8 +440,13 @@ Future<void> updateConsumedCount() async {
               ),
             SizedBox(height: 20),
             ElevatedButton(
-              onPressed: pickImage,
+              onPressed: pickImageFromCamera,
               child: Text('สแกนภาพจากกล้อง'),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: pickImageFromGallery,
+              child: Text('เลือกภาพจากแกลเลอรี่'),
             ),
           ],
         ),
