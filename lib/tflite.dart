@@ -1,5 +1,7 @@
 import 'dart:typed_data';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:foodbalance4/EditFoodPage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:image/image.dart' as img; // ใช้สำหรับประมวลผลภาพ
@@ -190,69 +192,126 @@ Future<void> pickImageFromGallery() async {
     );
   }
 
+Future<String?> _getImageUrl(String imageName) async {
+    try {
+      String downloadURL = await FirebaseStorage.instance
+          .ref(imageName) // ดึง URL ของรูปภาพตามชื่อที่เก็บใน Firestore
+          .getDownloadURL();
+      return downloadURL;
+    } catch (e) {
+      print('Error fetching image URL: $e');
+      return null;
+    }
+  }
+
   // ฟังก์ชันแสดงรายละเอียดอาหารในรูปแบบ Dialog
   void showFoodDetails(String foodId) async {
     DocumentSnapshot docSnapshot = await FirebaseFirestore.instance.collection('food').doc(foodId).get();
     var foodItem = docSnapshot.data() as Map<String, dynamic>;
 
+    String? imageUrl = await _getImageUrl(foodItem['image']);
     showDialog(
       context: context,
       builder: (context) {
         return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),  // ขอบโค้งมน
+            borderRadius: BorderRadius.circular(15),
           ),
           child: Container(
-            width: MediaQuery.of(context).size.width * 0.8,  // ปรับความกว้าง
-            height: MediaQuery.of(context).size.height * 0.80,  // ปรับความสูง
-            padding: EdgeInsets.all(15),  // เพิ่ม padding
+            width: MediaQuery.of(context).size.width * 1,
+            height: MediaQuery.of(context).size.height * 0.85,
+            padding: EdgeInsets.all(15),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'รายละเอียดอาหาร',
                   style: TextStyle(
-                    fontSize: 24, // ขนาดตัวอักษรใหญ่ขึ้น
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                SizedBox(height: 16), // เพิ่มช่องว่างระหว่างหัวข้อและเนื้อหา
+                SizedBox(height: 20),
+                // แสดงรูปภาพที่ดึงจาก Firebase Storage
+                imageUrl != null
+                    ? Image.network(imageUrl)
+                    : Text('ไม่พบรูปภาพ'),
+                SizedBox(height: 16),
                 Expanded(
-                  child: SingleChildScrollView( // ใช้เลื่อนหากเนื้อหาเกินขนาดกล่อง
+                  child: SingleChildScrollView(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'ชื่ออาหาร: ${foodItem['name'] ?? '-'}',
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue),
+                          style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue),
                         ),
-                        Text('ประเภท: ${foodItem['type'] ?? '-'}', style: TextStyle(fontSize: 16, color: Colors.black54)),
+                        Text('ประเภท: ${foodItem['type'] ?? '-'}',
+                            style:
+                                TextStyle(fontSize: 16, color: Colors.black54)),
                         SizedBox(height: 10),
-                        Text('โภชนาการ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
-                        
-                        buildProgressBar('คาร์โบไฮเดรต', foodItem['nutrition']['carbohydrates'], 275),
-                        buildProgressBar('โปรตีน', foodItem['nutrition']['proteins'], 50),
-                        buildProgressBar('ไขมัน', foodItem['nutrition']['fats'], 70),
-                        buildProgressBar('kcal', foodItem['nutrition']['calories'], 2000),
+                        Text('โภชนาการ',
+                            style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green)),
+
+                        buildProgressBar(
+                            'คาร์โบไฮเดรต',
+                            foodItem['nutrition']['carbohydrates'],
+                            275),
+                        buildProgressBar(
+                            'โปรตีน', foodItem['nutrition']['proteins'], 50),
+                        buildProgressBar(
+                            'ไขมัน', foodItem['nutrition']['fats'], 70),
+                        buildProgressBar(
+                            'kcal', foodItem['nutrition']['calories'], 2000),
+                        buildProgressBar(
+                            'น้ำตาล', foodItem['nutrition']['sugar'], 25),
                         SizedBox(height: 10),
-                        Text('วิตามิน', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
-                        buildProgressBar('วิตามิน A', foodItem['nutrition']['vitamins']['vitaminA'], 900),
-                        buildProgressBar('วิตามิน B', foodItem['nutrition']['vitamins']['vitaminB'], 2.4),
-                        buildProgressBar('วิตามิน C', foodItem['nutrition']['vitamins']['vitaminC'], 90),
-                        buildProgressBar('วิตามิน D', foodItem['nutrition']['vitamins']['vitaminD'], 20),
-                        buildProgressBar('วิตามิน E', foodItem['nutrition']['vitamins']['vitaminE'], 15),
-                        buildProgressBar('วิตามิน K', foodItem['nutrition']['vitamins']['vitaminK'], 120),
-                        
+                        Text('วิตามิน',
+                            style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green)),
+                        buildProgressBar('วิตามิน A',
+                            foodItem['nutrition']['vitamins']['vitaminA'], 900),
+                        buildProgressBar('วิตามิน B',
+                            foodItem['nutrition']['vitamins']['vitaminB'], 2.4),
+                        buildProgressBar('วิตามิน C',
+                            foodItem['nutrition']['vitamins']['vitaminC'], 90),
+                        buildProgressBar('วิตามิน D',
+                            foodItem['nutrition']['vitamins']['vitaminD'], 20),
+                        buildProgressBar('วิตามิน E',
+                            foodItem['nutrition']['vitamins']['vitaminE'], 15),
+                        buildProgressBar('วิตามิน K',
+                            foodItem['nutrition']['vitamins']['vitaminK'], 120),
+
                         SizedBox(height: 10),
-                        Text('แร่ธาตุ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
-                        buildProgressBar('แคลเซียม', foodItem['nutrition']['minerals']['calcium'], 1000),
-                        buildProgressBar('โพแทสเซียม', foodItem['nutrition']['minerals']['potassium'], 3500),
-                        buildProgressBar('โซเดียม', foodItem['nutrition']['minerals']['sodium'], 2300),
-                        buildProgressBar('เหล็ก', foodItem['nutrition']['minerals']['iron'], 18),
-                        buildProgressBar('แมกนีเซียม', foodItem['nutrition']['minerals']['magnesium'], 400),
-                        
+                        Text('แร่ธาตุ',
+                            style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green)),
+                        buildProgressBar('แคลเซียม',
+                            foodItem['nutrition']['minerals']['calcium'], 1000),
+                        buildProgressBar(
+                            'โพแทสเซียม',
+                            foodItem['nutrition']['minerals']['potassium'],
+                            3500),
+                        buildProgressBar('โซเดียม',
+                            foodItem['nutrition']['minerals']['sodium'], 2300),
+                        buildProgressBar('เหล็ก',
+                            foodItem['nutrition']['minerals']['iron'], 18),
+                        buildProgressBar('แมกนีเซียม',
+                            foodItem['nutrition']['minerals']['magnesium'], 400),
+
                         SizedBox(height: 10),
-                        buildProgressBar('ใยอาหาร', foodItem['nutrition']['fiber'], 25),
+                        buildProgressBar(
+                            'ใยอาหาร', foodItem['nutrition']['fiber'], 25),
                       ],
                     ),
                   ),
@@ -263,22 +322,47 @@ Future<void> pickImageFromGallery() async {
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.orangeAccent,
+                                    ),
+                                    onPressed: () {
+                                      Navigator.of(context).pop(); // ปิด dialog
+                                      // นำทางไปยังหน้าแก้ไข
+                                      Navigator.of(context).push(MaterialPageRoute(
+                                        builder: (context) => EditFoodPage(foodId: foodId),
+                                      ));
+                                    },
+                                    child: Text('แก้ไข', style: TextStyle(color: Colors.white)),
+                                  ),
+                      ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue, // ปุ่มเพิ่ม
+                          backgroundColor: Colors.blue,
                         ),
-                        onPressed: () {
-                            addFoodToHistory(foodItem);  // ส่งข้อมูลอาหารทั้งหมด
-                            updateConsumedCount();  // เรียกฟังก์ชันนับจำนวนบริโภค
-                            Navigator.of(context).pop(); // ปิด dialog
-                          },
+                        onPressed: () async {
+                          await addFoodToHistory(foodItem); // Correct, only foodItem is passed
+await updateUserEat(
+  FirebaseAuth.instance.currentUser!.uid, // Pass userId instead of context
+  foodItem['nutrition']['calories'], 
+  foodItem['nutrition']['carbohydrates'], 
+  foodItem['nutrition']['proteins'], 
+  foodItem['nutrition']['sugar']
+); // Correct, passing userId instead of context
+                          await updateConsumedCount(); // อัปเดต consumed ใน user_consumed
 
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text('เพิ่มอาหารเรียบร้อยแล้ว')),
+                          );
+
+                          Navigator.of(context).pop(); // ปิด dialog
+                        },
                         child: Text('เพิ่ม', style: TextStyle(color: Colors.white)),
                       ),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.redAccent,  // ปุ่มปิด
+                          backgroundColor: Colors.redAccent,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10), // ขอบปุ่มมน
+                            borderRadius: BorderRadius.circular(10),
                           ),
                         ),
                         onPressed: () {
@@ -299,33 +383,39 @@ Future<void> pickImageFromGallery() async {
 
 // ฟังก์ชันอัปเดตค่า user_eat ใน Firestore
 // ฟังก์ชันอัปเดตค่า user_eat ใน Firestore
-Future<void> updateUserEat(String userId, dynamic kcal) async {
+// อัปเดตฟังก์ชันให้รับค่าทั้งหมด 5 อาร์กิวเมนต์
+Future<void> updateUserEat(String userId, dynamic kcal, dynamic carbohydrates, dynamic proteins, dynamic sugar) async {
   try {
     DocumentReference userRecordRef = FirebaseFirestore.instance.collection('user_record').doc(userId);
     DocumentSnapshot userRecordSnapshot = await userRecordRef.get();
 
     if (userRecordSnapshot.exists) {
       var data = userRecordSnapshot.data() as Map<String, dynamic>;
-      int currentUserEat = data['user_eat'] ?? 0; // ค่าเริ่มต้นเป็น 0 ถ้าไม่มีข้อมูล
-      
-      // แปลง kcal จาก String เป็น int ถ้าค่าไม่เป็น null
-      int kcalValue = (kcal != null && kcal is String) ? int.parse(kcal) : (kcal ?? 0);
+      int currentUserEat = data['user_eat'] ?? 0;
+      int currentCarbohydratesEat = data['carbohydrate_eat'] ?? 0;
+      int currentProteinsEat = data['protein_eat'] ?? 0;
+      int currentSugarEat = data['sugar_eat'] ?? 0;
 
-      int newUserEat = currentUserEat + kcalValue; // บวกค่า kcal เข้ากับค่าที่มีอยู่เดิม
+      // แปลงค่า kcal, carbohydrates, proteins, และ sugar ให้เป็นตัวเลข
+      int kcalValue = (kcal != null && kcal is String) ? int.parse(kcal) : (kcal ?? 0);
+      int carbohydratesValue = (carbohydrates != null && carbohydrates is String) ? int.parse(carbohydrates) : (carbohydrates ?? 0);
+      int proteinsValue = (proteins != null && proteins is String) ? int.parse(proteins) : (proteins ?? 0);
+      int sugarValue = (sugar != null && sugar is String) ? int.parse(sugar) : (sugar ?? 0);
 
       // อัปเดตค่าลง Firestore
       await userRecordRef.update({
-        'user_eat': newUserEat,
+        'user_eat': currentUserEat + kcalValue,
+        'carbohydrate_eat': currentCarbohydratesEat + carbohydratesValue,
+        'protein_eat': currentProteinsEat + proteinsValue,
+        'sugar_eat': currentSugarEat + sugarValue,
+        'timestamp': Timestamp.now(),
       });
-
-      print('Updated user_eat: $newUserEat');
-    } else {
-      print('User record not found');
     }
   } catch (e) {
     print('Error updating user_eat: $e');
   }
 }
+
 
 
   // ฟังก์ชันบันทึกข้อมูลอาหารลง Firestore พร้อมแนบวันที่และช่วงเวลา
@@ -348,7 +438,13 @@ Future<void> addFoodToHistory(Map<String, dynamic> foodItem) async {
       });
 
       // เพิ่มการอัปเดต user_eat ใน user_record
-      await updateUserEat(userId, foodItem['nutrition']['calories']); // ส่งค่า kcal ไปบวกกับค่าเดิม
+      await updateUserEat(
+          userId, 
+          foodItem['nutrition']['calories'], 
+          foodItem['nutrition']['carbohydrates'], 
+          foodItem['nutrition']['proteins'], 
+          foodItem['nutrition']['sugar']
+        );// ส่งค่า kcal ไปบวกกับค่าเดิม
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('เพิ่มอาหารเรียบร้อยแล้ว')),

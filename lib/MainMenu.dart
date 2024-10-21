@@ -300,46 +300,89 @@ Future<void> saveCaloriesToFirestore(double caloriesBurned) async {
   }
 
 Future<void> loadStepsFromFirestore() async {
-    User? currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser != null) {
-      String userId = currentUser.uid;
-      DocumentReference stepRef = FirebaseFirestore.instance.collection('user_step').doc(userId);
+  User? currentUser = FirebaseAuth.instance.currentUser;
+  if (currentUser != null) {
+    String userId = currentUser.uid;
+    DocumentReference stepRef = FirebaseFirestore.instance.collection('user_step').doc(userId);
 
-      try {
-        DocumentSnapshot doc = await stepRef.get();
-        if (doc.exists) {
-          var data = doc.data() as Map<String, dynamic>?;
+    try {
+      DocumentSnapshot doc = await stepRef.get();
+      if (doc.exists) {
+        var data = doc.data() as Map<String, dynamic>?;
+
+        if (data != null && data.containsKey('timestamp')) {
+          Timestamp lastUpdatedTimestamp = data['timestamp'];
+          DateTime lastUpdatedDate = lastUpdatedTimestamp.toDate();
+          DateTime now = DateTime.now();
+
+          // ตรวจสอบว่าวันเปลี่ยนหรือยัง
+          if (lastUpdatedDate.day != now.day || lastUpdatedDate.month != now.month || lastUpdatedDate.year != now.year) {
+            // ถ้าเป็นวันใหม่ ให้รีเซ็ตค่า steps เป็น 0
+            setState(() {
+              _steps = 0;
+            });
+            saveStepsToFirestore(); // บันทึกค่า steps ที่รีเซ็ตแล้วลง Firestore
+          } else {
+            setState(() {
+              _steps = data['steps'] ?? 0; // ตั้งค่า _steps จากข้อมูลที่บันทึกใน Firestore
+            });
+          }
+        } else {
           setState(() {
             _steps = data?['steps'] ?? 0; // ตั้งค่า _steps จากข้อมูลที่บันทึกใน Firestore
           });
-          saveStepsToPreferences(); // บันทึกลงใน SharedPreferences ด้วย
         }
-      } catch (e) {
-        print("Failed to load steps: $e");
+        saveStepsToPreferences(); // บันทึกลงใน SharedPreferences ด้วย
       }
+    } catch (e) {
+      print("Failed to load steps: $e");
     }
   }
+}
 
 
 
   Future<void> saveStepsToFirestore() async {
-    User? currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser != null) {
-      String userId = currentUser.uid;
-      DocumentReference stepRef = FirebaseFirestore.instance.collection('user_step').doc(userId);
+  User? currentUser = FirebaseAuth.instance.currentUser;
+  if (currentUser != null) {
+    String userId = currentUser.uid;
+    DocumentReference stepRef = FirebaseFirestore.instance.collection('user_step').doc(userId);
 
-      try {
-        await stepRef.set({
-          'steps': _steps,
-          'timestamp': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+    try {
+      // ดึงข้อมูลจาก Firestore เพื่อเช็ควันที่ล่าสุดที่บันทึก
+      DocumentSnapshot doc = await stepRef.get();
 
-        print("Steps saved successfully!");
-      } catch (e) {
-        print("Failed to save steps: $e");
+      if (doc.exists) {
+        var data = doc.data() as Map<String, dynamic>?;
+
+        if (data != null && data.containsKey('timestamp')) {
+          Timestamp lastUpdatedTimestamp = data['timestamp'];
+          DateTime lastUpdatedDate = lastUpdatedTimestamp.toDate();
+          DateTime now = DateTime.now();
+
+          // ตรวจสอบว่าวันเปลี่ยนหรือยัง
+          if (lastUpdatedDate.day != now.day || lastUpdatedDate.month != now.month || lastUpdatedDate.year != now.year) {
+            // ถ้าเป็นวันใหม่ ให้รีเซ็ตจำนวนก้าวเป็น 0
+            setState(() {
+              _steps = 0;
+            });
+          }
+        }
       }
+
+      // บันทึกจำนวนก้าวใหม่ลง Firestore ไม่ว่าจำนวนก้าวจะถูกรีเซ็ตหรือไม่ก็ตาม
+      await stepRef.set({
+        'steps': _steps,
+        'timestamp': FieldValue.serverTimestamp(), // อัปเดตวันที่ล่าสุด
+      }, SetOptions(merge: true));
+
+      print("Steps saved successfully!");
+    } catch (e) {
+      print("Failed to save steps: $e");
     }
   }
+}
+
 
 
 
@@ -927,7 +970,7 @@ void _showEditStepGoalDialog(BuildContext context) {
                                 child: Text(
                                   '🍫', // แสดงเปอร์เซ็นต์ความคืบหน้าในกราฟวงกลม
                                   style: TextStyle(
-                                    fontSize: 22,
+                                    fontSize: 25,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.black, // เปลี่ยนสีตัวอักษรตามที่ต้องการ
                                     shadows: [
