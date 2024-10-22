@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:foodbalance4/AddFoodPage.dart';
+import 'package:foodbalance4/FoodManagementPage.dart';
 import 'package:foodbalance4/adminAdd.dart';
 import 'exercise_creation_page.dart'; // นำเข้าหน้า ExerciseCreationPage
 
@@ -46,6 +47,16 @@ class AdminScreen extends StatelessWidget {
                 );
               },
               child: const Text('Create Food But All'), 
+            ),
+            ElevatedButton(
+              onPressed: () {
+                // นำทางไปยังหน้า ExerciseCreationPage
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => FoodManagementPage()),
+                );
+              },
+              child: const Text('Edit / Delete Food'), 
             ),
           ],
         ),

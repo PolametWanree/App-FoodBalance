@@ -189,6 +189,28 @@ class _MainMenuState extends State<MainMenu> {
     super.dispose();
   }
 
+     void _simulatePastDate() async {
+  User? currentUser = FirebaseAuth.instance.currentUser;
+  if (currentUser != null) {
+    String userId = currentUser.uid;
+
+    // ตัวอย่างวันที่ในอดีต (เช่น 1 วันก่อนหน้า)
+    DateTime pastDate = DateTime.now().subtract(Duration(days: 1));
+    Timestamp pastTimestamp = Timestamp.fromDate(pastDate);
+
+    // อัปเดต timestamp เป็นวันที่ในอดีต
+    await FirebaseFirestore.instance.collection('user_step').doc(userId).update({
+      'timestamp': pastTimestamp, // เปลี่ยน timestamp เป็นวันที่ในอดีต
+    });
+
+    await FirebaseFirestore.instance.collection('user_record').doc(userId).update({
+      'timestamp': pastTimestamp, // เปลี่ยน timestamp เป็นวันที่ในอดีต
+    });
+
+    // หากมี collection อื่น ๆ ที่ต้องการเปลี่ยนแปลงให้ทำแบบเดียวกัน
+  }
+}
+
    void startTracking() {
     _accelerometerSubscription = accelerometerEvents.listen((AccelerometerEvent event) {
       trackSteps(event);
@@ -310,7 +332,8 @@ Future<void> loadStepsFromFirestore() async {
       if (doc.exists) {
         var data = doc.data() as Map<String, dynamic>?;
 
-        if (data != null && data.containsKey('timestamp')) {
+        // ตรวจสอบว่า timestamp มีอยู่จริงหรือไม่
+        if (data != null && data.containsKey('timestamp') && data['timestamp'] != null) {
           Timestamp lastUpdatedTimestamp = data['timestamp'];
           DateTime lastUpdatedDate = lastUpdatedTimestamp.toDate();
           DateTime now = DateTime.now();
@@ -342,6 +365,7 @@ Future<void> loadStepsFromFirestore() async {
 
 
 
+
   Future<void> saveStepsToFirestore() async {
   User? currentUser = FirebaseAuth.instance.currentUser;
   if (currentUser != null) {
@@ -363,6 +387,8 @@ Future<void> loadStepsFromFirestore() async {
           // ตรวจสอบว่าวันเปลี่ยนหรือยัง
           if (lastUpdatedDate.day != now.day || lastUpdatedDate.month != now.month || lastUpdatedDate.year != now.year) {
             // ถ้าเป็นวันใหม่ ให้รีเซ็ตจำนวนก้าวเป็น 0
+              await backupAllUserDataBeforeReset(context);
+
             setState(() {
               _steps = 0;
             });
@@ -386,41 +412,45 @@ Future<void> loadStepsFromFirestore() async {
 
 
 
- Future<void> resetBurnedIfNewDay(BuildContext context) async {
-    try {
-      User? currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser != null) {
-        String userId = currentUser.uid;
+Future<void> resetBurnedIfNewDay(BuildContext context) async {
+  try {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      String userId = currentUser.uid;
 
-        DocumentReference userBurnedRef =
-            FirebaseFirestore.instance.collection('user_burned').doc(userId);
+      DocumentReference userBurnedRef =
+          FirebaseFirestore.instance.collection('user_burned').doc(userId);
 
-        DocumentSnapshot doc = await userBurnedRef.get();
+      DocumentSnapshot doc = await userBurnedRef.get();
 
-        if (doc.exists) {
-          Map<String, dynamic>? data = doc.data() as Map<String, dynamic>?;
+      if (doc.exists) {
+        Map<String, dynamic>? data = doc.data() as Map<String, dynamic>?;
 
-          if (data != null && data.containsKey('lastUpdated')) {
-            Timestamp lastUpdatedTimestamp = data['lastUpdated'];
-            DateTime lastUpdatedDate = lastUpdatedTimestamp.toDate();
+        if (data != null && data.containsKey('lastUpdated')) {
+          Timestamp lastUpdatedTimestamp = data['lastUpdated'];
+          DateTime lastUpdatedDate = lastUpdatedTimestamp.toDate();
 
-            DateTime now = DateTime.now();
+          DateTime now = DateTime.now();
 
-            // ตรวจสอบว่าวันเปลี่ยนหรือยัง
-            if (lastUpdatedDate.day != now.day || lastUpdatedDate.month != now.month || lastUpdatedDate.year != now.year) {
-              // ถ้าเป็นวันใหม่ ให้รีเซ็ตค่า burned เป็น 0
-              await userBurnedRef.set({
-                'burned': 0, // รีเซ็ต burned เป็น 0
-                'lastUpdated': Timestamp.now(), // อัปเดต lastUpdated เป็นเวลาปัจจุบัน
-              }, SetOptions(merge: true));
-  
-            }
+          // ตรวจสอบว่าวันเปลี่ยนหรือยัง
+          if (lastUpdatedDate.day != now.day || lastUpdatedDate.month != now.month || lastUpdatedDate.year != now.year) {
+            // ทำการ backup ข้อมูลก่อนรีเซ็ต
+            await backupAllUserDataBeforeReset(context);
+
+            // ถ้าเป็นวันใหม่ ให้รีเซ็ตค่า burned เป็น 0
+            await userBurnedRef.set({
+              'burned': 0, // รีเซ็ต burned เป็น 0
+              'lastUpdated': Timestamp.now(), // อัปเดต lastUpdated เป็นเวลาปัจจุบัน
+            }, SetOptions(merge: true));
           }
         }
       }
-    } catch (e) {
     }
+  } catch (e) {
+    print("Failed to reset burned: $e");
   }
+}
+
 
 Future<void> resetDaily(BuildContext context) async {
     try {
@@ -445,6 +475,8 @@ Future<void> resetDaily(BuildContext context) async {
             // ตรวจสอบว่าวันเปลี่ยนหรือยัง
             if (lastUpdatedDate.day != now.day || lastUpdatedDate.month != now.month || lastUpdatedDate.year != now.year) {
               // ถ้าเป็นวันใหม่ ให้รีเซ็ตค่า burned เป็น 0
+              await backupAllUserDataBeforeReset(context);
+
               await userBurnedRef.set({
                 'user_eat': 0, // รีเซ็ต burned เป็น 0
                 'carbohydrate_eat': 0,
@@ -460,6 +492,52 @@ Future<void> resetDaily(BuildContext context) async {
     } catch (e) {
     }
   }
+
+Future<void> backupAllUserDataBeforeReset(BuildContext context) async {
+  try {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      String userId = currentUser.uid;
+
+      // เริ่มต้นการดึงข้อมูลจากทุก Collection ที่เกี่ยวข้อง
+      DocumentReference userRecordRef =
+          FirebaseFirestore.instance.collection('user_record').doc(userId);
+      DocumentReference userStepRef =
+          FirebaseFirestore.instance.collection('user_step').doc(userId);
+      DocumentReference userBurnedRef =
+          FirebaseFirestore.instance.collection('user_burned').doc(userId);
+      DocumentReference userConsumedRef =
+          FirebaseFirestore.instance.collection('user_consumed').doc(userId);
+
+      // ดึงข้อมูลจากทุก Collection
+      DocumentSnapshot userRecordDoc = await userRecordRef.get();
+      DocumentSnapshot userStepDoc = await userStepRef.get();
+      DocumentSnapshot userBurnedDoc = await userBurnedRef.get();
+      DocumentSnapshot userConsumedDoc = await userConsumedRef.get();
+
+      // สร้าง Map เพื่อเก็บข้อมูลทั้งหมดที่จะบันทึก
+      Map<String, dynamic> backupData = {
+        'user_record': userRecordDoc.exists ? userRecordDoc.data() : {},
+        'user_step': userStepDoc.exists ? userStepDoc.data() : {},
+        'user_burned': userBurnedDoc.exists ? userBurnedDoc.data() : {},
+        'user_consumed': userConsumedDoc.exists ? userConsumedDoc.data() : {},
+        'backup_timestamp': FieldValue.serverTimestamp(), // เก็บเวลาที่บันทึกข้อมูล
+      };
+
+      // บันทึกข้อมูลไปยัง collection `user_data`
+      await FirebaseFirestore.instance
+          .collection('user_data')
+          .doc(userId)
+          .collection('daily_backup')
+          .add(backupData);
+
+      print("Backup data saved successfully!");
+    }
+  } catch (e) {
+    print("Failed to backup user data: $e");
+  }
+}
+
 
 
 Future<void> resetConsumed(BuildContext context) async {
@@ -485,9 +563,11 @@ Future<void> resetConsumed(BuildContext context) async {
             // ตรวจสอบว่าวันเปลี่ยนหรือยัง
             if (lastUpdatedDate.day != now.day || lastUpdatedDate.month != now.month || lastUpdatedDate.year != now.year) {
               // ถ้าเป็นวันใหม่ ให้รีเซ็ตค่า burned เป็น 0
+              await backupAllUserDataBeforeReset(context);
+
               await userBurnedRef.set({
                 'count': 0, // รีเซ็ต burned เป็น 0
-                'timestamp': Timestamp.now(), // อัปเดต lastUpdated เป็นเวลาปัจจุบัน
+                'lastUpdated': Timestamp.now(), // อัปเดต lastUpdated เป็นเวลาปัจจุบัน
               }, SetOptions(merge: true));
   
             }
@@ -994,6 +1074,8 @@ void _showEditStepGoalDialog(BuildContext context) {
               ),
             ),
           ),
+
+
           SizedBox(height: 10),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 15),
@@ -1133,6 +1215,14 @@ StreamBuilder<DocumentSnapshot>(
             ),
           ),
         ),
+
+
+        ////////////ซ่อน ไม่บอก////////////
+        // SizedBox(height: 10),
+        // ElevatedButton(
+        //   onPressed: _simulatePastDate,
+        //   child: Text("Test New Day Reset"),
+        // ),
         ],
       ),
     );

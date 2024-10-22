@@ -71,7 +71,7 @@ class FoodListPage extends StatefulWidget {
 class _FoodListPageState extends State<FoodListPage> {
   TextEditingController _searchController = TextEditingController();
   String searchQuery = '';
-  bool showFavoritesOnly = true; // ตัวแปรสำหรับแสดงเฉพาะ favorite
+  bool showFavoritesOnly = false; // ตัวแปรสำหรับแสดงเฉพาะ favorite
   
   @override
   Widget build(BuildContext context) {
