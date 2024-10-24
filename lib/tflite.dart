@@ -137,9 +137,7 @@ Future<void> pickImageFromGallery() async {
       showFoodConfirmation(snapshot.docs.first.id, predictedFood);
     } else {
       // ถ้าไม่พบข้อมูล
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('ไม่พบข้อมูลในฐานข้อมูล')),
-      );
+    
     }
   }
 
@@ -349,10 +347,7 @@ await updateUserEat(
 ); // Correct, passing userId instead of context
                           await updateConsumedCount(); // อัปเดต consumed ใน user_consumed
 
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text('เพิ่มอาหารเรียบร้อยแล้ว')),
-                          );
+                          
 
                           Navigator.of(context).pop(); // ปิด dialog
                         },
@@ -446,20 +441,14 @@ Future<void> addFoodToHistory(Map<String, dynamic> foodItem) async {
           foodItem['nutrition']['sugar']
         );// ส่งค่า kcal ไปบวกกับค่าเดิม
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('เพิ่มอาหารเรียบร้อยแล้ว')),
-      );
+      
     } else {
       // กรณีที่ไม่พบผู้ใช้ที่ล็อกอิน
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('ไม่สามารถดึงข้อมูลผู้ใช้ได้')),
-      );
+      
     }
   } catch (e) {
     print('Error adding food: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('เกิดข้อผิดพลาดในการเพิ่มอาหาร')),
-    );
+    
   }
 }
 
@@ -501,54 +490,88 @@ Future<void> updateConsumedCount() async {
         'lastUpdated': now,                   // วันที่และเวลาที่อัปเดต
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('เพิ่มอาหารและนับการบริโภคสำเร็จ')),
-      );
+      
     } else {
       // กรณีที่ไม่พบผู้ใช้ที่ล็อกอิน
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('ไม่สามารถดึงข้อมูลผู้ใช้ได้')),
-      );
+      
     }
   } catch (e) {
     print('Error updating consumed count: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('เกิดข้อผิดพลาดในการนับการบริโภค')),
-    );
+    
   }
 }
+
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Food Scanner'),
-      ),
+      backgroundColor: Colors.white,
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            if (isLoading) CircularProgressIndicator(),
-            if (resultText != null)
-              Text(
-                'ผลลัพธ์: $resultText',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            // ปุ่มกล้อง
+            GestureDetector(
+              onTap: () async {
+                await pickImageFromCamera();
+              },
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: const Color.fromARGB(255, 52, 157, 90), // สีขอบปุ่ม
+                        width: 3, // ความหนาของขอบปุ่ม
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.camera_enhance, // ไอคอนกล้อง
+                      size: 40,
+                      color: const Color.fromARGB(255, 52, 157, 90),
+                    ),
+                  ),
+                ],
               ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: pickImageFromCamera,
-              child: Text('สแกนภาพจากกล้อง'),
             ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: pickImageFromGallery,
-              child: Text('เลือกภาพจากแกลเลอรี่'),
+            // ปุ่มเลือกภาพจากแกลเลอรี่
+            GestureDetector(
+              onTap: () async {
+                await pickImageFromGallery();
+              },
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: const Color.fromARGB(255, 52, 157, 90), // สีขอบปุ่ม
+                        width: 3, // ความหนาของขอบปุ่ม
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.photo_library, // ไอคอนแกลเลอรี่
+                      size: 40,
+                      color: const Color.fromARGB(255, 52, 157, 90),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
       ),
     );
   }
+}
+
 
   // ฟังก์ชันสร้าง progress bar
   Widget buildProgressBar(String label, dynamic value, double recommended) {
@@ -575,4 +598,4 @@ Future<void> updateConsumedCount() async {
       ],
     );
   }
-}
+

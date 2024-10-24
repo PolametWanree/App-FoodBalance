@@ -60,6 +60,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 } else {
                   return Center(child: CircularProgressIndicator());
                 }
+                
               },
             ),
     );

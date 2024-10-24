@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // นำเข้า Firebase Firestore
 import 'package:firebase_auth/firebase_auth.dart'; // นำเข้า Firebase Auth
 import 'activity_level_page.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart'; // นำเข้า Font Awesome
 
 class GenderPage extends StatefulWidget {
   final String name;
@@ -85,37 +86,103 @@ class _GenderPageState extends State<GenderPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Gender'),
-      ),
-      body: Padding(
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/BG.png'), // แบ็คกราวด์เป็นรูปภาพ
+            fit: BoxFit.cover,
+          ),
+        ),
         padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            DropdownButtonFormField<String>(
-              value: _selectedGender,
-              hint: const Text('Select Gender'),
-              items: const [
-                DropdownMenuItem(value: 'Male', child: Text('Male')),
-                DropdownMenuItem(value: 'Female', child: Text('Female')),
-              ],
-              onChanged: (value) {
-                setState(() {
-                  _selectedGender = value;
-                });
-              },
-              decoration: const InputDecoration(
-                labelText: 'Gender',
-                border: OutlineInputBorder(),
+            Text(
+              'Select Your Gender',
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // ปุ่มเพศชาย
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedGender = 'Male';
+                    });
+                  },
+                  child: Container(
+                    width: 130, // กำหนดความกว้าง
+                    height: 150, // กำหนดความสูง
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: _selectedGender == 'Male' ? const Color.fromARGB(255, 33, 72, 243) : Colors.white,
+                        width: 2,
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                      color: Colors.white,
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center, // จัดให้อยู่กลาง
+                      children: [
+                        Icon(FontAwesomeIcons.male, size: 80, color: Color.fromARGB(255, 33, 72, 243)), // ใช้ไอคอนชาย
+                        const SizedBox(height: 8),
+                        const Text('Male', style: TextStyle(color: Colors.black)),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 20),
+                // ปุ่มเพศหญิง
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedGender = 'Female';
+                    });
+                  },
+                  child: Container(
+                    width: 130, // กำหนดความกว้าง
+                    height: 150, // กำหนดความสูง
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: _selectedGender == 'Female' ? Colors.pink : Colors.white,
+                        width: 2,
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                      color: Colors.white,
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center, // จัดให้อยู่กลาง
+                      children: [
+                        Icon(FontAwesomeIcons.female, size: 80, color: Colors.pink), // ใช้ไอคอนหญิง
+                        const SizedBox(height: 8),
+                        const Text('Female', style: TextStyle(color: Colors.black)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
             _isSaving
                 ? const CircularProgressIndicator()
                 : ElevatedButton(
                     onPressed: _saveDataAndNavigate,
-                    child: const Text('Next'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      backgroundColor: const Color.fromARGB(255, 0, 150, 136), // ปรับสีปุ่ม
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                    child: const Text('Next', style: TextStyle(color: Colors.white)),
                   ),
           ],
         ),

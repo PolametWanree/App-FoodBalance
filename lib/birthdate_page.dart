@@ -97,10 +97,14 @@ class _BirthdatePageState extends State<BirthdatePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Birthdate'),
-      ),
-      body: Padding(
+      
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/BG.png'), // แบ็คกราวด์เป็นรูปภาพ
+            fit: BoxFit.cover,
+          ),
+        ),
         padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -122,12 +126,16 @@ class _BirthdatePageState extends State<BirthdatePage> {
               child: InputDecorator(
                 decoration: const InputDecoration(
                   labelText: 'Birthdate',
+                  labelStyle: TextStyle(color: Color.fromARGB(255, 37, 93, 51)),
+                  filled: true,
+                  fillColor: Color.fromARGB(255, 255, 255, 255),
                   border: OutlineInputBorder(),
                 ),
                 child: Text(
                   _birthdate == null
                       ? 'Select your birthdate'
                       : DateFormat.yMMMd().format(_birthdate!),
+                  style: const TextStyle(color: Colors.black),
                 ),
               ),
             ),
@@ -136,7 +144,17 @@ class _BirthdatePageState extends State<BirthdatePage> {
                 ? const CircularProgressIndicator()
                 : ElevatedButton(
                     onPressed: _saveDataAndNavigate,
-                    child: const Text('Next'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      backgroundColor: const Color.fromARGB(255, 37, 93, 51), // ปรับสีปุ่ม
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                    child: const Text(
+                      'Next',
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
           ],
         ),

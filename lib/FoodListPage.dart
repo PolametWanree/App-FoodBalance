@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -206,14 +207,14 @@ class _FoodListPageState extends State<FoodListPage> {
                         ),
                         elevation: 5,
                         child: ListTile(
-                          leading: imageUrl != null
-                              ? Image.network(
-                                  imageUrl,
-                                  width: 50,
-                                  height: 50,
-                                  fit: BoxFit.cover,
-                                )
-                              : Icon(Icons.image, size: 50),
+leading: CachedNetworkImage(
+  imageUrl: imageUrl ?? '',
+  placeholder: (context, url) => CircularProgressIndicator(), // แสดง loading เมื่อรอการโหลดภาพ
+  errorWidget: (context, url, error) => Icon(Icons.error), // แสดง error เมื่อโหลดภาพไม่สำเร็จ
+  width: 50,
+  height: 50,
+  fit: BoxFit.cover,
+),
                           title: Text(foodItem['name'] ?? '-'),
                           subtitle: Text.rich(
                             TextSpan(
@@ -293,6 +294,8 @@ class _FoodListPageState extends State<FoodListPage> {
     }
     return [];
   }
+
+  
 
   void showFoodDetails(BuildContext context, String foodId) async {
     DocumentSnapshot docSnapshot =
@@ -452,10 +455,7 @@ class _FoodListPageState extends State<FoodListPage> {
                               );
                               await updateConsumedCount(context);
 
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                    content: Text('เพิ่มอาหารเรียบร้อยแล้ว')),
-                              );
+                      
 
                               Navigator.of(context).pop();
                             },
@@ -532,26 +532,27 @@ class _FoodListPageState extends State<FoodListPage> {
     }
   }
 
-  // ฟังก์ชันเพิ่มอาหารในประวัติ Firestore
-  Future<void> addFoodToHistory(BuildContext context, Map<String, dynamic> foodItem) async {
-    try {
-      User? currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser != null) {
-        String userId = currentUser.uid;
+    // ฟังก์ชันเพิ่มอาหารในประวัติ Firestore
+    Future<void> addFoodToHistory(BuildContext context, Map<String, dynamic> foodItem) async {
+      try {
+        User? currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null) {
+          String userId = currentUser.uid;
 
-        await FirebaseFirestore.instance.collection('user_addFood').add({
-          'food_name': foodItem['name'] ?? '-',
-          'food_type': foodItem['type'] ?? '-',
-          'nutrition': foodItem['nutrition'] ?? {},
-          'added_at': DateTime.now(),
-          'user_id': userId,
-          'kcal': foodItem['nutrition']['calories'],
-        });
+          await FirebaseFirestore.instance.collection('user_addFood').add({
+            'image' : foodItem['image'] ?? '',
+            'food_name': foodItem['name'] ?? '-',
+            'food_type': foodItem['type'] ?? '-',
+            'nutrition': foodItem['nutrition'] ?? {},
+            'added_at': DateTime.now(),
+            'user_id': userId,
+            'kcal': foodItem['nutrition']['calories'],
+          });
+        }
+      } catch (e) {
+        print("Failed to add food item to history: $e");
       }
-    } catch (e) {
-      print("Failed to add food item to history: $e");
     }
-  }
 
   // ฟังก์ชันอัปเดต user_eat ใน collection user_record
   Future<void> updateUserEat(BuildContext context, dynamic kcal, dynamic carbohydrates, dynamic proteins, dynamic sugar) async {

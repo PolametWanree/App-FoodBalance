@@ -3,10 +3,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:foodbalance4/AdminScreen.dart';
+import 'package:icons_plus/icons_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:intl/intl.dart';
+import 'dart:math';
 
 void main() {
   runApp(MyApp());
@@ -36,6 +38,10 @@ class _ProfilePageState extends State<ProfilePage> {
   List<FlSpot> chartData = [];
   List<String> xLabels = [];
   double? tdeeValue; // เก็บค่า TDEE จาก Firestore
+  TextEditingController _carbohydrateController = TextEditingController();
+  TextEditingController _proteinController = TextEditingController();
+  TextEditingController _sugarController = TextEditingController();
+  TextEditingController _tdeeController = TextEditingController();
 
   @override
   void initState() {
@@ -43,7 +49,110 @@ class _ProfilePageState extends State<ProfilePage> {
     _getCurrentUser();
     _getDailyBackupData();
     _getTDEE(); // ดึงค่า TDEE จาก Firestore
+    _getGoalDataFromFirestore(); // ดึงข้อมูลเป้าหมายจาก Firestore
   }
+
+  Future<void> _getGoalDataFromFirestore() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      DocumentSnapshot userRecord = await FirebaseFirestore.instance
+          .collection('user_record')
+          .doc(user.uid)
+          .get();
+      setState(() {
+        // กำหนดค่าให้ TextEditingControllers
+        _carbohydrateController.text = (userRecord['carbohydrate'] ?? 0).toString();
+        _proteinController.text = (userRecord['protein'] ?? 0).toString();
+        _sugarController.text = (userRecord['sugar'] ?? 0).toString();
+        _tdeeController.text = (userRecord['tdee'] ?? 0).toString();
+      });
+    }
+  }
+
+  Future<void> _saveGoalDataToFirestore() async {
+    if (currentUser != null) {
+      await FirebaseFirestore.instance
+          .collection('user_record')
+          .doc(currentUser!.uid)
+          .update({
+        'carbohydrate': double.parse(_carbohydrateController.text),
+        'protein': double.parse(_proteinController.text),
+        'sugar': double.parse(_sugarController.text),
+        'tdee': double.parse(_tdeeController.text),
+      });
+    }
+  }
+
+  Future<void> _showEditDialog(
+      BuildContext context, String label, TextEditingController controller) async {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Edit $label'),
+          content: TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: label,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Cancel'),
+            ),
+            TextButton(
+  onPressed: () async {
+    await _saveGoalDataToFirestore(); // Save the updated value to Firestore
+    Navigator.of(context).pop();
+  },
+  child: Text('Save'),
+),
+
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildGoalEditField(BuildContext context,
+    {required IconData icon,
+    required String label,
+    required TextEditingController controller}) {
+  return GestureDetector(
+    onTap: () {
+      _showEditDialog(context, label, controller); // แสดง Dialog เมื่อกดที่ไอคอน
+    },
+    child: AbsorbPointer(
+      child: TextField(
+        controller: controller,
+        readOnly: true, // ทำให้เป็น readOnly เพื่อให้กดไอคอนเพื่อแก้ไขแทน
+        decoration: InputDecoration(
+          prefixIcon: Icon(icon, color: const Color.fromARGB(255, 255, 255, 255)), // ตั้งค่าสีของไอคอน
+          labelText: label,
+          labelStyle: TextStyle(color: const Color.fromARGB(255, 255, 255, 255)), // ตั้งค่าสีของ label
+          enabledBorder: OutlineInputBorder(
+            borderSide: BorderSide(
+              color: const Color.fromARGB(255, 255, 255, 255), // ตั้งค่าสีของขอบเมื่อไม่ได้เลือก
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderSide: BorderSide(
+              color: Colors.orange, // ตั้งค่าสีของขอบเมื่อเลือก TextField
+            ),
+          ),
+        ),
+        style: TextStyle(
+          color: const Color.fromARGB(255, 255, 255, 255), // ตั้งค่าสีของข้อความ
+        ),
+      ),
+    ),
+  );
+}
+
 
   // ดึงข้อมูลผู้ใช้ที่ล็อกอินอยู่จาก Firebase Auth และดึงข้อมูลจาก Firestore
   Future<void> _getCurrentUser() async {
@@ -53,7 +162,8 @@ class _ProfilePageState extends State<ProfilePage> {
         currentUser = user;
       });
 
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      DocumentSnapshot userDoc =
+          await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       setState(() {
         userData = userDoc.data() as Map<String, dynamic>?;
         if (userData != null) {
@@ -67,7 +177,10 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _getTDEE() async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      DocumentSnapshot userRecord = await FirebaseFirestore.instance.collection('user_record').doc(user.uid).get();
+      DocumentSnapshot userRecord = await FirebaseFirestore.instance
+          .collection('user_record')
+          .doc(user.uid)
+          .get();
       setState(() {
         tdeeValue = (userRecord['tdee'] ?? 0).toDouble();
       });
@@ -82,56 +195,6 @@ class _ProfilePageState extends State<ProfilePage> {
         _image = File(pickedFile.path);
       });
       // TODO: อัปโหลดรูปไปยัง Firebase Storage และอัปเดต URL รูปใน Firestore
-    }
-  }
-
-  // ฟังก์ชันสำหรับดึงข้อมูลจาก daily_backup สำหรับกราฟ
-  Future<void> _getDailyBackupData() async {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      String userId = user.uid;
-      QuerySnapshot backupSnapshots = await FirebaseFirestore.instance
-          .collection('user_data')
-          .doc(userId)
-          .collection('daily_backup')
-          .orderBy('backup_timestamp', descending: true)
-          .limit(7)
-          .get();
-
-      List<FlSpot> spots = [];
-      List<String> labels = [];
-      int index = 0;
-
-      for (var doc in backupSnapshots.docs) {
-        var data = doc.data() as Map<String, dynamic>;
-        double userEat = data['user_record']?['user_eat']?.toDouble() ?? 0;
-
-        Timestamp timestamp = data['backup_timestamp'] ?? Timestamp.now();
-        DateTime date = timestamp.toDate();
-        String formattedDate = DateFormat('MM/dd').format(date);
-
-        labels.add(formattedDate);
-        spots.add(FlSpot(index.toDouble(), userEat));
-        index++;
-      }
-
-      setState(() {
-        chartData = spots.reversed.toList();
-        xLabels = labels.reversed.toList();
-      });
-    }
-  }
-
-  // ฟังก์ชันบันทึกข้อมูลผู้ใช้เมื่อกดบันทึก
-  Future<void> _saveProfile() async {
-    if (currentUser != null && _nameController.text.isNotEmpty) {
-      await FirebaseFirestore.instance.collection('users').doc(currentUser!.uid).update({
-        'name': _nameController.text,
-        // TODO: อัปเดต URL รูปโปรไฟล์ถ้ามี
-      });
-      setState(() {
-        isEditing = false;
-      });
     }
   }
 
@@ -202,7 +265,8 @@ class _ProfilePageState extends State<ProfilePage> {
                                               // ปุ่มสำหรับแอดมินหลังชื่อผู้ใช้
                                               if (userData!['roll'] == 'admin')
                                                 IconButton(
-                                                  icon: const Icon(Icons.admin_panel_settings, color: Color.fromARGB(255, 13, 93, 49)),
+                                                  icon: const Icon(Icons.admin_panel_settings,
+                                                      color: Color.fromARGB(255, 13, 93, 49)),
                                                   onPressed: () {
                                                     Navigator.push(
                                                       context,
@@ -271,125 +335,247 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ],
                     ),
+                    // คอนเทนเนอร์สำหรับ Edit Your Goal
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+                      child: Container(
+                        width: 350,
+                        height: 210,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              const Color.fromARGB(255, 13, 93, 49),
+                              const Color.fromARGB(255, 152, 234, 212),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 10,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // ส่วนการแก้ไขเป้าหมาย
+                            Container(
+                              padding: const EdgeInsets.all(0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(Icons.edit, color: Colors.white, size: 18),
+                                          SizedBox(width: 5),
+                                          Text(
+                                            'Edit Your Goal',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 8),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: _buildGoalEditField(
+                                          context,
+                                          icon: FontAwesome.bowl_rice_solid,
+                                          label: "Carb",
+                                            controller: _carbohydrateController, // ใช้ controller ที่เก็บค่า carb
+                                        ),
+                                      ),
+                                      SizedBox(width: 6),
+                                      Expanded(
+                                        child: _buildGoalEditField(
+                                          context,
+                                          icon: FontAwesome.drumstick_bite_solid,
+                                          label: "Protein",
+                                          controller: _proteinController, // ใช้ controller ที่เก็บค่า protein
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 8),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: _buildGoalEditField(
+                                          context,
+                                          icon: FontAwesome.candy_cane_solid,
+                                          label: "Sugar",
+                                          controller: _sugarController, // ใช้ controller ที่เก็บค่า sugar
+                                        ),
+                                      ),
+                                      SizedBox(width: 6),
+                                      Expanded(
+                                        child: _buildGoalEditField(
+                                          context,
+                                          icon: FontAwesome.fire_flame_curved_solid,
+                                          label: "TDEE",
+                                          controller: _tdeeController, // ใช้ controller ที่เก็บค่า tdee
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    // กราฟแสดงข้อมูลการกิน
                     const SizedBox(height: 30),
                     const Text(
                       'พัฒนาการด้านการกิน ( Callories )',
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 10),
-                    chartData.isNotEmpty
-                        ? SizedBox(
-                            height: 250,
-                            child: LineChart(
-                              LineChartData(
-                                minY: 0,
-                                maxY: 4000,
-                                gridData: FlGridData(
-                                  show: true,
-                                  drawVerticalLine: true,
-                                  horizontalInterval: 500,
-                                  verticalInterval: 1,
-                                  getDrawingHorizontalLine: (value) {
-                                    return FlLine(
-                                      color: Colors.grey.withOpacity(0.3),
-                                      strokeWidth: 1,
-                                    );
-                                  },
-                                  getDrawingVerticalLine: (value) {
-                                    return FlLine(
-                                      color: Colors.grey.withOpacity(0.3),
-                                      strokeWidth: 1,
-                                    );
-                                  },
-                                ),
-                                titlesData: FlTitlesData(
-                                  bottomTitles: AxisTitles(
-                                    sideTitles: SideTitles(
-                                      showTitles: true,
-                                      reservedSize: 32,
-                                      interval: 1,
-                                      getTitlesWidget: (value, _) {
-                                        if (value.toInt() < xLabels.length) {
-                                          return Padding(
-                                            padding: const EdgeInsets.only(top: 8.0),
-                                            child: Text(
-                                              xLabels[value.toInt()],
-                                              style: const TextStyle(
-                                                  fontWeight: FontWeight.bold, fontSize: 12),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(15),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.5),
+                            spreadRadius: 2,
+                            blurRadius: 5,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: chartData.isNotEmpty
+                          ? SizedBox(
+                              height: 250,
+                              child: LineChart(
+                                LineChartData(
+                                  minY: 0,
+                                  maxY: 4000,
+                                  gridData: FlGridData(
+                                    show: true,
+                                    drawVerticalLine: true,
+                                    horizontalInterval: 500,
+                                    verticalInterval: 1,
+                                    getDrawingHorizontalLine: (value) {
+                                      return FlLine(
+                                        color: Colors.grey.withOpacity(0.3),
+                                        strokeWidth: 1,
+                                      );
+                                    },
+                                    getDrawingVerticalLine: (value) {
+                                      return FlLine(
+                                        color: Colors.grey.withOpacity(0.3),
+                                        strokeWidth: 1,
+                                      );
+                                    },
+                                  ),
+                                  titlesData: FlTitlesData(
+                                    bottomTitles: AxisTitles(
+                                      sideTitles: SideTitles(
+                                        showTitles: true,
+                                        reservedSize: 32,
+                                        interval: 1,
+                                        getTitlesWidget: (value, _) {
+                                          if (value.toInt() < xLabels.length) {
+                                            return Padding(
+                                              padding: const EdgeInsets.only(top: 8.0),
+                                              child: Text(
+                                                xLabels[value.toInt()],
+                                                style: const TextStyle(
+                                                    fontWeight: FontWeight.bold, fontSize: 12),
+                                              ),
+                                            );
+                                          }
+                                          return const Text('');
+                                        },
+                                      ),
+                                    ),
+                                    leftTitles: AxisTitles(
+                                      sideTitles: SideTitles(showTitles: false),
+                                    ),
+                                    rightTitles: AxisTitles(
+                                      sideTitles: SideTitles(showTitles: false),
+                                    ),
+                                    topTitles: AxisTitles(
+                                      sideTitles: SideTitles(showTitles: false),
+                                    ),
+                                  ),
+                                  borderData: FlBorderData(
+                                    show: true,
+                                    border: Border.all(
+                                      color: Colors.grey.withOpacity(0.5),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  lineTouchData: LineTouchData(
+                                    touchTooltipData: LineTouchTooltipData(
+                                      getTooltipItems: (List<LineBarSpot> touchedSpots) {
+                                        return touchedSpots.map((spot) {
+                                          return LineTooltipItem(
+                                            '${spot.y.toStringAsFixed(0)} แคลลอรี่',
+                                            const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
                                             ),
                                           );
-                                        }
-                                        return const Text('');
+                                        }).toList();
                                       },
                                     ),
                                   ),
-                                  leftTitles: AxisTitles(
-                                    sideTitles: SideTitles(showTitles: false),
-                                  ),
-                                  rightTitles: AxisTitles(
-                                    sideTitles: SideTitles(showTitles: false),
-                                  ),
-                                  topTitles: AxisTitles(
-                                    sideTitles: SideTitles(showTitles: false),
-                                  ),
-                                ),
-                                borderData: FlBorderData(
-                                  show: true,
-                                  border: Border.all(
-                                    color: Colors.grey.withOpacity(0.5),
-                                    width: 1,
-                                  ),
-                                ),
-                                lineTouchData: LineTouchData(
-                                  touchTooltipData: LineTouchTooltipData(
-                                    getTooltipItems: (List<LineBarSpot> touchedSpots) {
-                                      return touchedSpots.map((spot) {
-                                        return LineTooltipItem(
-                                          '${spot.y.toStringAsFixed(0)} แคลลอรี่',
-                                          const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 14,
-                                          ),
-                                        );
-                                      }).toList();
-                                    },
-                                  ),
-                                ),
-                                lineBarsData: [
-                                  LineChartBarData(
-                                    spots: chartData,
-                                    isCurved: true,
-                                    barWidth: 4,
-                                    color: const Color.fromARGB(255, 42, 84, 175),
-                                    belowBarData: BarAreaData(
-                                      show: true,
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          const Color.fromARGB(255, 31, 160, 66).withOpacity(0.5),
-                                          const Color.fromARGB(255, 52, 187, 240).withOpacity(0.5),
-                                        ],
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
+                                  lineBarsData: [
+                                    LineChartBarData(
+                                      spots: chartData,
+                                      isCurved: true,
+                                      barWidth: 4,
+                                      color: const Color.fromARGB(255, 42, 84, 175),
+                                      belowBarData: BarAreaData(
+                                        show: true,
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            const Color.fromARGB(255, 31, 160, 66).withOpacity(0.5),
+                                            const Color.fromARGB(255, 52, 187, 240).withOpacity(0.5),
+                                          ],
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
-                                extraLinesData: ExtraLinesData(
-                                  horizontalLines: [
-                                    if (tdeeValue != null) // ตรวจสอบว่าค่า TDEE มีอยู่
-                                      HorizontalLine(
-                                        y: tdeeValue!,
-                                        color: Colors.red,
-                                        strokeWidth: 2,
-                                        dashArray: [5, 5], // สร้างเส้นแบบประ
-                                      ),
                                   ],
+                                  extraLinesData: ExtraLinesData(
+                                    horizontalLines: [
+                                      if (tdeeValue != null) // ตรวจสอบว่าค่า TDEE มีอยู่
+                                        HorizontalLine(
+                                          y: tdeeValue!,
+                                          color: const Color.fromARGB(255, 68, 129, 57),
+                                          strokeWidth: 2,
+                                          dashArray: [5, 5], // สร้างเส้นแบบประ
+                                        ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
-                          )
-                        : const Center(child: CircularProgressIndicator()),
+                            )
+                          : const Center(child: CircularProgressIndicator()),
+                    ),
                     Padding(
                       padding: const EdgeInsets.only(top: 20.0),
                       child: Center(
@@ -400,7 +586,28 @@ class _ProfilePageState extends State<ProfilePage> {
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 50),
                           ),
-                          child: const Text('Log Out'),
+                          child: const Text(
+                            'Log Out',
+                            style: TextStyle(color: Color.fromARGB(255, 0, 0, 0)),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 20.0),
+                      child: Center(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            _showDeleteAccountDialog(context);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 50),
+                            backgroundColor: const Color.fromARGB(255, 255, 255, 255), // สีแดงสำหรับปุ่มลบบัญชี
+                          ),
+                          child: const Text(
+                            'Delete Account',
+                            style: TextStyle(color: Color.fromARGB(255, 255, 0, 0)),
+                          ),
                         ),
                       ),
                     ),
@@ -410,6 +617,124 @@ class _ProfilePageState extends State<ProfilePage> {
             : const Center(child: CircularProgressIndicator()),
       ),
     );
+  }
+
+  void _showDeleteAccountDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Account'),
+          content: const Text('Are you sure you want to delete your account? This action is irreversible.'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                await _deleteAccount(context);
+                Navigator.of(context).pop();
+              },
+              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+// ฟังก์ชันสำหรับดึงข้อมูลจาก daily_backup สำหรับกราฟ
+Future<void> _getDailyBackupData() async {
+  User? user = FirebaseAuth.instance.currentUser;
+  if (user != null) {
+    String userId = user.uid;
+
+    // ดึงข้อมูลตามวัน
+    QuerySnapshot backupSnapshots = await FirebaseFirestore.instance
+        .collection('user_data')
+        .doc(userId)
+        .collection('daily_backup')
+        .orderBy('backup_timestamp', descending: true)
+        .get();
+
+    Map<String, double> dailyMax = {}; // เก็บค่า TDEE สูงสุดในแต่ละวัน
+    List<String> labels = [];
+
+    for (var doc in backupSnapshots.docs) {
+      var data = doc.data() as Map<String, dynamic>;
+      double userEat = data['user_record']?['user_eat']?.toDouble() ?? 0;
+
+      Timestamp timestamp = data['backup_timestamp'] ?? Timestamp.now();
+      DateTime date = timestamp.toDate();
+      String formattedDate = DateFormat('MM/dd').format(date);
+
+      // ตรวจสอบค่า TDEE สูงสุดในวันนั้น
+      if (dailyMax.containsKey(formattedDate)) {
+        dailyMax[formattedDate] = max(dailyMax[formattedDate]!, userEat);
+      } else {
+        dailyMax[formattedDate] = userEat;
+      }
+    }
+
+    // สร้างจุดข้อมูลสำหรับกราฟจาก dailyMax
+    int index = 0;
+    dailyMax.forEach((date, value) {
+      labels.add(date);
+      chartData.add(FlSpot(index.toDouble(), value));
+      index++;
+    });
+
+    setState(() {
+      chartData = chartData.reversed.toList(); // เรียงข้อมูลใหม่เพื่อให้แสดงล่าสุดไปเก่าที่สุด
+      xLabels = labels.reversed.toList(); // เรียงวันที่ใหม่
+    });
+  }
+}
+
+
+
+// ฟังก์ชันบันทึกข้อมูลผู้ใช้เมื่อกดบันทึก
+Future<void> _saveProfile() async {
+  if (currentUser != null && _nameController.text.isNotEmpty) {
+    await FirebaseFirestore.instance.collection('users').doc(currentUser!.uid).update({
+      'name': _nameController.text,
+      // TODO: อัปเดต URL รูปโปรไฟล์ถ้ามี
+    });
+    setState(() {
+      isEditing = false;
+    });
+  }
+}
+
+
+  Future<void> _deleteAccount(BuildContext context) async {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser != null) {
+      try {
+        // ลบข้อมูลผู้ใช้จาก Firestore
+        await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).delete();
+        await FirebaseFirestore.instance.collection('user_record').doc(currentUser.uid).delete();
+
+        // ลบผู้ใช้จาก Firebase Authentication
+        await currentUser.delete();
+
+        // ลบข้อมูลใน SharedPreferences ถ้ามี
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.clear();
+
+        // ออกจากระบบและนำทางกลับไปที่หน้าล็อกอิน
+        Navigator.pushReplacementNamed(context, '/login');
+      } catch (e) {
+        print('Failed to delete account: $e');
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error: Unable to delete account. Please try again.'),
+        ));
+      }
+    }
   }
 
   void _logout(BuildContext context) async {

@@ -3,7 +3,7 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera.any" />
     <application
-        android:label="foodbalance4"
+        android:label="FoodBalance"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
