@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.foodbalance4"
+    namespace = "*************"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
