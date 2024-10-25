@@ -610,40 +610,54 @@ Future<void> loadStepGoalFromPreferences() async {
   }
 
   Future<void> resetDaily(BuildContext context) async {
-    try {
-      User? currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser != null) {
-        String userId = currentUser.uid;
+  try {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      String userId = currentUser.uid;
 
-        DocumentReference userBurnedRef = FirebaseFirestore.instance.collection('user_record').doc(userId);
+      // ตรวจสอบ timestamp ใน user_record
+      DocumentReference userRecordRef = FirebaseFirestore.instance.collection('user_record').doc(userId);
+      DocumentSnapshot recordDoc = await userRecordRef.get();
 
-        DocumentSnapshot doc = await userBurnedRef.get();
+      if (recordDoc.exists) {
+        Map<String, dynamic>? data = recordDoc.data() as Map<String, dynamic>?;
 
-        if (doc.exists) {
-          Map<String, dynamic>? data = doc.data() as Map<String, dynamic>?;
+        if (data != null && data.containsKey('timestamp')) {
+          Timestamp lastUpdatedTimestamp = data['timestamp'];
+          DateTime lastUpdatedDate = lastUpdatedTimestamp.toDate();
+          DateTime now = DateTime.now();
 
-          if (data != null && data.containsKey('timestamp')) {
-            Timestamp lastUpdatedTimestamp = data['timestamp'];
-            DateTime lastUpdatedDate = lastUpdatedTimestamp.toDate();
+          // ถ้าวันที่ไม่ตรงกันให้รีเซ็ตค่า
+          if (lastUpdatedDate.day != now.day || lastUpdatedDate.month != now.month || lastUpdatedDate.year != now.year) {
+            await backupAllUserDataBeforeReset(context);
 
-            DateTime now = DateTime.now();
+            // อัปเดตค่าใน user_record ให้เป็น 0
+            await userRecordRef.set({
+              'user_eat': 0,
+              'carbohydrate_eat': 0,
+              'protein_eat': 0,
+              'sugar_eat': 0,
+              'timestamp': Timestamp.now(),
+            }, SetOptions(merge: true));
 
-            if (lastUpdatedDate.day != now.day || lastUpdatedDate.month != now.month || lastUpdatedDate.year != now.year) {
-              await backupAllUserDataBeforeReset(context);
+            // อัปเดตค่า steps ให้เป็น 0 ใน user_step
+            DocumentReference userStepRef = FirebaseFirestore.instance.collection('user_step').doc(userId);
+            await userStepRef.set({
+              'steps': 0,
+              'timestamp': Timestamp.now(),
+            }, SetOptions(merge: true));
 
-              await userBurnedRef.set({
-                'user_eat': 0,
-                'carbohydrate_eat': 0,
-                'protein_eat': 0,
-                'sugar_eat': 0,
-                'timestamp': Timestamp.now(),
-              }, SetOptions(merge: true));
-            }
+            setState(() {
+              _steps = 0; // อัปเดตค่า steps ใน UI ด้วย
+            });
           }
         }
       }
-    } catch (e) {}
+    }
+  } catch (e) {
+    print("Failed to reset daily values: $e");
   }
+}
 
   Future<void> backupAllUserDataBeforeReset(BuildContext context) async {
     try {
