@@ -645,7 +645,7 @@ Future<void> loadStepGoalFromPreferences() async {
             await userStepRef.set({
               'steps': 0,
               'timestamp': Timestamp.now(),
-            }, SetOptions(merge: true));
+            }, SetOptions(merge: true)); /////reset step
 
             setState(() {
               _steps = 0; // อัปเดตค่า steps ใน UI ด้วย
